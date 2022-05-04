@@ -89,7 +89,7 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 	processor.cursor.LeftKey = time < processor.releaseRightAt
 	processor.cursor.RightKey = time < processor.releaseLeftAt
 	}
-	
+	//uncomment this to make danser have a skill issue 
 	*/
 
 	processor.lastTime = time
