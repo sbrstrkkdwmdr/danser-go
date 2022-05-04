@@ -1,6 +1,8 @@
 package input
 
 import (
+	"math/rand"
+
 	"github.com/wieku/danser-go/app/beatmap/objects"
 	"github.com/wieku/danser-go/app/graphics"
 	"github.com/wieku/danser-go/framework/math/mutils"
@@ -31,6 +33,12 @@ func NewNaturalInputProcessor(objs []objects.IHitObject, cursor *graphics.Cursor
 
 	return processor
 }
+func randomthingy() (cursorpress int) {
+	min := 0
+	max := 10
+	cursorpress = (rand.Intn(max - min))
+	return cursorpress
+} //eee
 
 func (processor *NaturalInputProcessor) Update(time float64) {
 	if len(processor.queue) > 0 {
@@ -41,7 +49,7 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 			}
 
 			if processor.lastTime < g.GetStartTime() && time >= g.GetStartTime() {
-				startTime := g.GetStartTime()
+				//startTime := g.GetStartTime()
 				endTime := g.GetEndTime()
 
 				releaseAt := endTime + 50.0
@@ -52,7 +60,7 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 					releaseAt = mutils.ClampF(nTime-2, endTime+1, releaseAt)
 				}
 
-				shouldBeLeft := !processor.wasLeftBefore && startTime-processor.previousEnd < singleTapThreshold
+				shouldBeLeft := !processor.wasLeftBefore //&& startTime-processor.previousEnd < singleTapThreshold
 
 				if shouldBeLeft {
 					processor.releaseLeftAt = releaseAt
@@ -70,9 +78,19 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 			}
 		}
 	}
-
 	processor.cursor.LeftKey = time < processor.releaseLeftAt
 	processor.cursor.RightKey = time < processor.releaseRightAt
+	/*
+	randomnumber := randomthingy()
+	if randomnumber > 5 {
+	processor.cursor.LeftKey = time < processor.releaseLeftAt
+	processor.cursor.RightKey = time < processor.releaseRightAt
+	} else {
+	processor.cursor.LeftKey = time < processor.releaseRightAt
+	processor.cursor.RightKey = time < processor.releaseLeftAt
+	}
+	
+	*/
 
 	processor.lastTime = time
 }
