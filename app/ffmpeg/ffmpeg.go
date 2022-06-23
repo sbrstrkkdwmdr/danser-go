@@ -25,6 +25,8 @@ func preCheck() {
 		panic("ffmpeg not found! Please make sure it's installed in danser directory or in PATH. Follow download instructions at https://github.com/Wieku/danser-go/wiki/FFmpeg")
 	}
 
+	log.Println("FFmpeg exec location:", ffmpegExec)
+
 	out, err := exec.Command(ffmpegExec, "-encoders").Output()
 	if err != nil {
 		if strings.Contains(err.Error(), "127") || strings.Contains(strings.ToLower(err.Error()), "0xc0000135") {
@@ -117,11 +119,13 @@ func combine() {
 		options = append(options, "-movflags", "+faststart")
 	}
 
-	options = append(options, filepath.Join(settings.Recording.GetOutputDir(), output+"."+settings.Recording.Container))
+	finalOutputPath := filepath.Join(settings.Recording.GetOutputDir(), output+"."+settings.Recording.Container)
+
+	options = append(options, finalOutputPath)
 
 	log.Println("Starting composing audio and video into one file...")
 	log.Println("Running ffmpeg with options:", options)
-	cmd2 := exec.Command("ffmpeg", options...)
+	cmd2 := exec.Command(ffmpegExec, options...)
 
 	if settings.Recording.ShowFFmpegLogs {
 		cmd2.Stdout = os.Stdout
@@ -135,6 +139,7 @@ func combine() {
 			log.Println("ffmpeg finished abruptly! Please check if you have enough storage. Error:", err)
 		} else {
 			log.Println("Finished!")
+			log.Println("Video is available at:", finalOutputPath)
 		}
 	}
 
