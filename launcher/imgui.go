@@ -40,22 +40,23 @@ func SetupImgui(win *glfw.Window) {
 
 	context = imgui.CreateContext(nil)
 
-	imgui.PushStyleVarFloat(imgui.StyleVarWindowRounding, 0)
+	imgui.PushStyleVarFloat(imgui.StyleVarPopupRounding, 5)
+	imgui.PushStyleVarFloat(imgui.StyleVarWindowRounding, 5)
 	imgui.PushStyleVarFloat(imgui.StyleVarFrameRounding, 5)
 	imgui.PushStyleVarFloat(imgui.StyleVarGrabRounding, 5)
 	imgui.PushStyleVarFloat(imgui.StyleVarFrameBorderSize, 1)
-	imgui.PushStyleColor(imgui.StyleColorBorder, imgui.Vec4{1, 1, 1, 1})
-	imgui.PushStyleColor(imgui.StyleColorFrameBg, imgui.Vec4{0.1, 0.1, 0.1, 0.8})
-	imgui.PushStyleColor(imgui.StyleColorFrameBgActive, imgui.Vec4{0.2, 0.2, 0.2, 0.8})
-	imgui.PushStyleColor(imgui.StyleColorFrameBgHovered, imgui.Vec4{0.4, 0.4, 0.4, 0.8})
+	imgui.PushStyleColor(imgui.StyleColorBorder, vec4(1, 1, 1, 1))
+	imgui.PushStyleColor(imgui.StyleColorFrameBg, vec4(0.1, 0.1, 0.1, 0.8))
+	imgui.PushStyleColor(imgui.StyleColorFrameBgActive, vec4(0.2, 0.2, 0.2, 0.8))
+	imgui.PushStyleColor(imgui.StyleColorFrameBgHovered, vec4(0.4, 0.4, 0.4, 0.8))
 
-	imgui.PushStyleColor(imgui.StyleColorButton, imgui.Vec4{0.1, 0.1, 0.1, 0.8})
-	imgui.PushStyleColor(imgui.StyleColorButtonActive, imgui.Vec4{0.2, 0.2, 0.2, 0.8})
-	imgui.PushStyleColor(imgui.StyleColorButtonHovered, imgui.Vec4{0.4, 0.4, 0.4, 0.8})
+	imgui.PushStyleColor(imgui.StyleColorButton, vec4(0.1, 0.1, 0.1, 0.8))
+	imgui.PushStyleColor(imgui.StyleColorButtonActive, vec4(0.2, 0.2, 0.2, 0.8))
+	imgui.PushStyleColor(imgui.StyleColorButtonHovered, vec4(0.4, 0.4, 0.4, 0.8))
 
-	imgui.PushStyleColor(imgui.StyleColorTitleBg, imgui.Vec4{0.2, 0.2, 0.2, 0.8})
-	imgui.PushStyleColor(imgui.StyleColorTitleBgActive, imgui.Vec4{0.2, 0.2, 0.2, 0.8})
-	imgui.PushStyleColor(imgui.StyleColorTitleBgCollapsed, imgui.Vec4{0.2, 0.2, 0.2, 0.8})
+	imgui.PushStyleColor(imgui.StyleColorTitleBg, vec4(0.2, 0.2, 0.2, 0.8))
+	imgui.PushStyleColor(imgui.StyleColorTitleBgActive, vec4(0.2, 0.2, 0.2, 0.8))
+	imgui.PushStyleColor(imgui.StyleColorTitleBgCollapsed, vec4(0.2, 0.2, 0.2, 0.8))
 
 	//imgui.PushStyleColor(imgui.StyleColorFrameBg)
 
@@ -88,27 +89,26 @@ func SetupImgui(win *glfw.Window) {
 
 	//fontawesome is quite large so for now we will load only needed glyphs
 	awesomeBuilder := &imgui.GlyphRangesBuilder{}
-	awesomeBuilder.Add(0xF04B, 0xF04B)
-	awesomeBuilder.Add(0xF04D, 0xF04D)
+	awesomeBuilder.Add(0xF04B, 0xF04B) // play
+	awesomeBuilder.Add(0xF04D, 0xF04D) // stop
 	awesomeBuilder.Add('+', '+')
-	awesomeBuilder.Add(0xF068, 0xF068)
-
-	awesomeBuilder.Add(0xF0AD, 0xF0AD)
-	awesomeBuilder.Add(0xF108, 0xF108)
-	awesomeBuilder.Add(0xF028, 0xF028)
-	awesomeBuilder.Add(0xF11C, 0xF11C)
-	awesomeBuilder.Add(0xF140, 0xF140)
-	awesomeBuilder.Add(0xF53F, 0xF53F)
-	awesomeBuilder.Add(0xF245, 0xF245)
-	awesomeBuilder.Add(0xF1CD, 0xF1CD)
-	awesomeBuilder.Add(0xF853, 0xF853)
-	awesomeBuilder.Add(0xF5B7, 0xF5B7)
-	awesomeBuilder.Add(0xE599, 0xE599)
-	awesomeBuilder.Add(0xF0CB, 0xF0CB)
-	awesomeBuilder.Add(0xF03D, 0xF03D)
-	awesomeBuilder.Add(0xF882, 0xF882)
-	awesomeBuilder.Add(0xF15D, 0xF15D)
-	awesomeBuilder.Add(0xF084, 0xF084)
+	awesomeBuilder.Add(0xF068, 0xF068) // minus
+	awesomeBuilder.Add(0xF0AD, 0xF0AD) // wrench
+	awesomeBuilder.Add(0xE163, 0xE163) // display
+	awesomeBuilder.Add(0xF028, 0xF028) // volume-high
+	awesomeBuilder.Add(0xF11C, 0xF11C) // keyboard
+	awesomeBuilder.Add(0xF245, 0xF245) // arrow-pointer
+	awesomeBuilder.Add(0xE599, 0xE599) // worm
+	awesomeBuilder.Add(0xF0CB, 0xF0CB) // list-ol
+	awesomeBuilder.Add(0xF03D, 0xF03D) // video
+	awesomeBuilder.Add(0xF882, 0xF882) // arrow-up-z-a
+	awesomeBuilder.Add(0xF15D, 0xF15D) // arrow-down-a-z
+	awesomeBuilder.Add(0xF084, 0xF084) // key
+	awesomeBuilder.Add(0xF7A2, 0xF7A2) // earth-europe
+	awesomeBuilder.Add(0xF192, 0xF192) // circle-dot
+	awesomeBuilder.Add(0xF1E0, 0xF1E0) // share-nodes
+	awesomeBuilder.Add(0xF1FC, 0xF1FC) // paintbrush
+	awesomeBuilder.Add(0xF43C, 0xF43C) // chess-board
 
 	//awesomeBuilder.Add(0x0020, 0xffff)
 
@@ -425,11 +425,14 @@ var lastTime float64
 func Begin() {
 	x, y := input.Win.GetCursorPos()
 
-	ImIO.AddMousePosEvent(imgui.Vec2{X: float32(x), Y: float32(y)})
+	w, h := int(settings.Graphics.GetWidth()), int(settings.Graphics.GetHeight()) //input.Win.GetFramebufferSize()
+	_, h1 := glfw.GetCurrentContext().GetFramebufferSize()
+
+	scaling := float32(h1) / float32(h)
+
+	ImIO.AddMousePosEvent(imgui.Vec2{X: float32(x) / scaling, Y: float32(y) / scaling})
 	ImIO.AddMouseButtonEvent(0, input.Win.GetMouseButton(glfw.MouseButtonLeft) == glfw.Press)
 	ImIO.AddMouseButtonEvent(1, input.Win.GetMouseButton(glfw.MouseButtonRight) == glfw.Press)
-
-	w, h := input.Win.GetFramebufferSize()
 
 	ImIO.SetDisplaySize(imgui.Vec2{X: float32(w), Y: float32(h)})
 
@@ -455,7 +458,7 @@ func DrawImgui() {
 
 	rShader.Bind()
 
-	w, h := input.Win.GetFramebufferSize()
+	w, h := int(settings.Graphics.GetWidth()), int(settings.Graphics.GetHeight()) //input.Win.GetFramebufferSize()
 
 	rShader.SetUniform("proj", mgl32.Ortho(0, float32(w), float32(h), 0, -1, 1))
 
@@ -470,6 +473,10 @@ func DrawImgui() {
 	blend.Push()
 	blend.Enable()
 	blend.SetFunction(blend.SrcAlpha, blend.OneMinusSrcAlpha)
+
+	_, h1 := glfw.GetCurrentContext().GetFramebufferSize()
+
+	scaling := float32(h1) / float32(h)
 
 	for _, list := range drawData.CommandLists() {
 		vertexBuffer, vertexBufferSize := list.VertexBuffer()
@@ -505,8 +512,9 @@ func DrawImgui() {
 			if cmd.HasUserCallback() {
 				cmd.CallUserCallback(list)
 			} else {
-				clipRect := cmd.ClipRect()
-				viewport.PushScissorPos(int(clipRect.X), int(settings.Graphics.GetHeight())-int(clipRect.W), int(clipRect.Z-clipRect.X), int(clipRect.W-clipRect.Y))
+				clipRect := cmd.ClipRect().Times(scaling)
+
+				viewport.PushScissorPos(int(clipRect.X), int(float32(h1)-clipRect.W), int(clipRect.Z-clipRect.X), int(clipRect.W-clipRect.Y))
 
 				ibo.DrawPart(cmd.IndexOffset(), cmd.ElementCount())
 

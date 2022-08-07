@@ -37,10 +37,11 @@ require (
 )
 
 require (
-	github.com/TheTitanrain/w32 v0.0.0-20180517000239-4f5cfb03fabf
 	github.com/sqweek/dialog v0.0.0-20220504154117-be45b268883a
 	golang.org/x/exp v0.0.0-20220312040426-20fd27f61765
 )
+
+require github.com/TheTitanrain/w32 v0.0.0-20180517000239-4f5cfb03fabf // indirect
 
 require (
 	//github.com/neclepsio/imgui-go/v4 v4.0.0-20220215070259-092710ff7bb1
@@ -50,4 +51,4 @@ require (
 
 replace github.com/inkyblackness/imgui-go/v4 => github.com/neclepsio/imgui-go/v4 v4.0.0-20220215070259-092710ff7bb1
 
-replace github.com/sqweek/dialog => github.com/wieku/dialog v0.0.0-20220604021040-6e9dd6e8efa4
+replace github.com/sqweek/dialog => github.com/wieku/dialog v0.0.0-20220624021813-6651e87950e9

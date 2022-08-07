@@ -24,6 +24,7 @@ void beep_error() {}
 import "C"
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"github.com/faiface/mainthread"
 	"github.com/go-gl/gl/v3.3-core/gl"
@@ -43,6 +44,7 @@ import (
 	"github.com/wieku/danser-go/framework/env"
 	"github.com/wieku/danser-go/framework/goroutines"
 	"github.com/wieku/danser-go/framework/graphics/batch"
+	"github.com/wieku/danser-go/framework/graphics/viewport"
 	"github.com/wieku/danser-go/framework/math/animation"
 	"github.com/wieku/danser-go/framework/math/animation/easing"
 	"github.com/wieku/danser-go/framework/math/mutils"
@@ -64,6 +66,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 )
 
 type Mode int
@@ -73,6 +76,7 @@ const (
 	DanserReplay
 	Replay
 	Knockout
+	NewKnockout
 	Play
 )
 
@@ -85,6 +89,8 @@ func (m Mode) String() string {
 	case Replay:
 		return "Watch a replay"
 	case Knockout:
+		return "Watch knockout (classic)"
+	case NewKnockout:
 		return "Watch knockout"
 	case Play:
 		return "Play osu!standard"
@@ -93,7 +99,7 @@ func (m Mode) String() string {
 	return ""
 }
 
-var modes = []Mode{CursorDance, DanserReplay, Replay, Knockout, Play}
+var modes = []Mode{CursorDance, DanserReplay, Replay, Knockout, NewKnockout, Play}
 
 type PMode int
 
@@ -175,6 +181,9 @@ type launcher struct {
 	prevMap *beatmap.BeatMap
 
 	configSearch string
+
+	lastReplayDir   string
+	lastKnockoutDir string
 }
 
 func StartLauncher() {
@@ -243,6 +252,12 @@ func StartLauncher() {
 			})
 		}
 	})
+
+	// Save configs on exit
+	saveLauncherConfig()
+	if launcher.currentConfig != nil {
+		launcher.currentConfig.Save("", false)
+	}
 }
 
 func closeHandler(err any, stackTrace []string) {
@@ -298,7 +313,8 @@ func (l *launcher) startGLFW() {
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
 	glfw.WindowHint(glfw.Resizable, glfw.False)
-	glfw.WindowHint(glfw.Samples, 0)
+	glfw.WindowHint(glfw.ScaleToMonitor, glfw.True)
+	glfw.WindowHint(glfw.Samples, 4)
 
 	settings.Graphics.Fullscreen = false
 	settings.Graphics.WindowWidth = 800
@@ -377,7 +393,7 @@ func (l *launcher) loadBeatmaps() {
 	} else {
 		bSplash := "Loading maps...\nThis may take a while...\n\n"
 
-		beatmaps := database.LoadBeatmaps(false, func(stage database.ImportStage, processed, target int) {
+		beatmaps := database.LoadBeatmaps(launcherConfig.SkipMapUpdate, func(stage database.ImportStage, processed, target int) {
 			switch stage {
 			case database.Discovery:
 				l.splashText = bSplash + "Searching for .osu files...\n\n"
@@ -388,8 +404,8 @@ func (l *launcher) loadBeatmaps() {
 			case database.Import:
 				percent := float64(processed) / float64(target) * 100
 				l.splashText = bSplash + fmt.Sprintf("Importing maps...\n%d / %d\n%.0f%%", processed, target, percent)
-			case database.Finalize:
-				l.splashText = bSplash + "Updating the database...\n\n"
+			case database.Finished:
+				l.splashText = bSplash + "Finished!\n\n"
 			}
 		})
 
@@ -414,12 +430,11 @@ func (l *launcher) loadBeatmaps() {
 	}
 
 	l.win.SetDropCallback(func(w *glfw.Window, names []string) {
-		if !strings.HasSuffix(names[0], ".osr") {
-			showMessage(mError, "It's not a replay file!")
-			return
+		if len(names) > 1 {
+			l.trySelectReplaysFromPaths(names)
+		} else {
+			l.trySelectReplayFromPath(names[0])
 		}
-
-		l.loadReplay(names[0])
 	})
 
 	l.win.SetCloseCallback(func(w *glfw.Window) {
@@ -439,33 +454,59 @@ func (l *launcher) loadBeatmaps() {
 		}
 	})
 
-	if len(os.Args) > 1 { //won't work in combined mode
-		l.loadReplay(os.Args[1])
+	if len(os.Args) > 2 { //won't work in combined mode
+		l.trySelectReplaysFromPaths(os.Args[1:])
+	} else if len(os.Args) > 1 {
+		l.trySelectReplayFromPath(os.Args[1])
 	} else if launcherConfig.LoadLatestReplay {
-		lastModified := time.UnixMilli(0)
-		replayPath := ""
-
-		filepath.Walk(l.currentConfig.General.GetReplaysDir(), func(path string, info fs.FileInfo, err error) error {
-			if info.IsDir() && path != l.currentConfig.General.GetReplaysDir() {
-				return filepath.SkipDir
-			}
-
-			if !info.IsDir() && strings.HasSuffix(path, ".osr") {
-				if info.ModTime().After(lastModified) {
-					lastModified = info.ModTime()
-					replayPath = path
-				}
-			}
-
-			return nil
-		})
-
-		if replayPath != "" {
-			l.loadReplay(replayPath)
-		}
+		l.loadLatestReplay()
 	}
 
 	l.mapsLoaded = true
+}
+
+func (l *launcher) loadLatestReplay() {
+	replaysDir := l.currentConfig.General.GetReplaysDir()
+
+	type lastModPath struct {
+		tStamp time.Time
+		name   string
+	}
+
+	var list []*lastModPath
+
+	entries, err := os.ReadDir(replaysDir)
+	if err != nil {
+		return
+	}
+
+	for _, d := range entries {
+		if !d.IsDir() && strings.HasSuffix(d.Name(), ".osr") {
+			if info, err1 := d.Info(); err1 == nil {
+				list = append(list, &lastModPath{
+					tStamp: info.ModTime(),
+					name:   d.Name(),
+				})
+			}
+		}
+	}
+
+	if list == nil {
+		return
+	}
+
+	slices.SortFunc(list, func(a, b *lastModPath) bool {
+		return a.tStamp.After(b.tStamp)
+	})
+
+	// Load the newest that can be used
+	for _, lMP := range list {
+		r, err := l.loadReplay(filepath.Join(replaysDir, lMP.name))
+		if err == nil {
+			l.trySelectReplay(r)
+			break
+		}
+	}
 }
 
 func extensionCheck() {
@@ -491,6 +532,9 @@ func extensionCheck() {
 }
 
 func (l *launcher) Draw() {
+	w, h := l.win.GetFramebufferSize()
+	viewport.Push(w, h)
+
 	if l.bg.HasBackground() {
 		gl.ClearColor(0, 0, 0, 1.0)
 	} else {
@@ -500,8 +544,7 @@ func (l *launcher) Draw() {
 	gl.Clear(gl.COLOR_BUFFER_BIT)
 	gl.Enable(gl.SCISSOR_TEST)
 
-	w, h := int(settings.Graphics.WindowWidth), int(settings.Graphics.WindowHeight)
-	gl.Viewport(0, 0, int32(w), int32(h))
+	w, h = int(settings.Graphics.WindowWidth), int(settings.Graphics.WindowHeight)
 
 	settings.Graphics.Fullscreen = false
 	settings.Graphics.WindowWidth = int64(w)
@@ -564,6 +607,8 @@ func (l *launcher) Draw() {
 	l.batch.End()
 
 	l.drawImgui()
+
+	viewport.Pop()
 }
 
 func (l *launcher) drawImgui() {
@@ -577,24 +622,15 @@ func (l *launcher) drawImgui() {
 
 	wW, wH := int(settings.Graphics.WindowWidth), int(settings.Graphics.WindowHeight)
 
-	imgui.SetNextWindowSize(imgui.Vec2{
-		X: float32(wW),
-		Y: float32(wH),
-	})
+	imgui.SetNextWindowSize(vec2(float32(wW), float32(wH)))
 
-	imgui.SetNextWindowPos(imgui.Vec2{})
+	imgui.SetNextWindowPos(vzero())
 
-	imgui.PushStyleVarVec2(imgui.StyleVarWindowPadding, imgui.Vec2{
-		X: 20,
-		Y: 20,
-	})
+	imgui.PushStyleVarVec2(imgui.StyleVarWindowPadding, vec2(20, 20))
 
 	imgui.BeginV("main", nil, imgui.WindowFlagsNoDecoration /*|imgui.WindowFlagsNoMove*/ |imgui.WindowFlagsNoBackground|imgui.WindowFlagsNoScrollWithMouse|imgui.WindowFlagsNoBringToFrontOnFocus)
 
-	imgui.PushStyleVarVec2(imgui.StyleVarWindowPadding, imgui.Vec2{
-		X: 5,
-		Y: 5,
-	})
+	imgui.PushStyleVarVec2(imgui.StyleVarWindowPadding, vec2(5, 5))
 
 	if l.mapsLoaded {
 		l.drawMain()
@@ -620,7 +656,7 @@ func (l *launcher) drawMain() {
 
 	imgui.PushFont(Font24)
 
-	if imgui.BeginTableV("ltpanel", 2, imgui.TableFlagsSizingStretchProp, imgui.Vec2{float32(w) / 2, 0}, -1) {
+	if imgui.BeginTableV("ltpanel", 2, imgui.TableFlagsSizingStretchProp, vec2(float32(w)/2, 0), -1) {
 		imgui.TableSetupColumnV("ltpanel1", imgui.TableColumnFlagsWidthFixed, 0, uint(0))
 		imgui.TableSetupColumnV("ltpanel2", imgui.TableColumnFlagsWidthStretch, 0, uint(1))
 
@@ -635,7 +671,7 @@ func (l *launcher) drawMain() {
 
 		if imgui.BeginCombo("##mode", l.bld.currentMode.String()) {
 			for _, m := range modes {
-				if imgui.SelectableV(m.String(), l.bld.currentMode == m, 0, imgui.Vec2{}) {
+				if imgui.SelectableV(m.String(), l.bld.currentMode == m, 0, vzero()) {
 					if m == Play {
 						l.bld.currentPMode = Watch
 					}
@@ -643,6 +679,10 @@ func (l *launcher) drawMain() {
 					if m != Replay {
 						l.bld.replayPath = ""
 						l.bld.currentReplay = nil
+					}
+
+					if m != NewKnockout {
+						l.bld.knockoutReplays = nil
 					}
 
 					l.bld.currentMode = m
@@ -701,10 +741,7 @@ func (l *launcher) drawSplash() {
 	for _, sText := range splText {
 		tSize := imgui.CalcTextSize(sText, false, 0)
 
-		imgui.SetCursorPos(imgui.Vec2{
-			X: 20 + (w-tSize.X)/2,
-			Y: 20 + (h-height)/2 + dHeight,
-		})
+		imgui.SetCursorPos(vec2(20+(w-tSize.X)/2, 20+(h-height)/2+dHeight))
 
 		dHeight += tSize.Y
 
@@ -715,22 +752,24 @@ func (l *launcher) drawSplash() {
 }
 
 func (l *launcher) drawControls() {
-	imgui.SetCursorPos(imgui.Vec2{X: 20, Y: 88})
+	imgui.SetCursorPos(vec2(20, 88))
 	switch l.bld.currentMode {
 	case Replay:
 		l.selectReplay()
+	case NewKnockout:
+		l.newKnockout()
 	default:
 		l.showSelect()
 	}
 
-	imgui.SetCursorPos(imgui.Vec2{X: 20, Y: 204 + 34})
+	imgui.SetCursorPos(vec2(20, 204+34))
 
 	w := imgui.WindowContentRegionMax().X
 
-	if imgui.BeginTableV("abtn", 2, imgui.TableFlagsSizingStretchSame, imgui.Vec2{float32(w) / 2, -1}, -1) {
+	if imgui.BeginTableV("abtn", 2, imgui.TableFlagsSizingStretchSame, vec2(float32(w)/2, -1), -1) {
 		imgui.TableNextColumn()
 
-		if imgui.ButtonV("Speed/Pitch", imgui.Vec2{X: -1, Y: imgui.TextLineHeight() * 2}) {
+		if imgui.ButtonV("Speed/Pitch", vec2(-1, imgui.TextLineHeight()*2)) {
 			l.openPopup(newPopupF("Speed adjust", popMedium, func() {
 				drawSpeedMenu(l.bld)
 			}))
@@ -739,26 +778,26 @@ func (l *launcher) drawControls() {
 		imgui.TableNextColumn()
 
 		if l.bld.currentMode != Replay {
-			if imgui.ButtonV("Mods", imgui.Vec2{X: -1, Y: imgui.TextLineHeight() * 2}) {
+			if imgui.ButtonV("Mods", vec2(-1, imgui.TextLineHeight()*2)) {
 				l.openPopup(newModPopup(l.bld))
 			}
 		}
 
 		imgui.TableNextColumn()
 		if l.bld.currentMode != Replay {
-			if imgui.ButtonV("Adjust difficulty", imgui.Vec2{X: -1, Y: imgui.TextLineHeight() * 2}) {
+			if imgui.ButtonV("Adjust difficulty", vec2(-1, imgui.TextLineHeight()*2)) {
 				l.openPopup(newPopupF("Difficulty adjust", popMedium, func() {
 					drawParamMenu(l.bld)
 				}))
 			}
 		} else {
-			imgui.Dummy(imgui.Vec2{X: -1, Y: imgui.TextLineHeight() * 2})
+			imgui.Dummy(vec2(-1, imgui.TextLineHeight()*2))
 		}
 
 		imgui.TableNextColumn()
 
 		if l.bld.currentMode == CursorDance {
-			if imgui.ButtonV("Mirrors/Tags", imgui.Vec2{X: -1, Y: imgui.TextLineHeight() * 2}) {
+			if imgui.ButtonV("Mirrors/Tags", vec2(-1, imgui.TextLineHeight()*2)) {
 				l.openPopup(newPopupF("Difficulty adjust", popDynamic, func() {
 					drawCDMenu(l.bld)
 				}))
@@ -767,7 +806,7 @@ func (l *launcher) drawControls() {
 
 		imgui.TableNextColumn()
 
-		if imgui.ButtonV("Time/Offset", imgui.Vec2{X: -1, Y: imgui.TextLineHeight() * 2}) {
+		if imgui.ButtonV("Time/Offset", vec2(-1, imgui.TextLineHeight()*2)) {
 			timePopup := newPopupF("Set times", popMedium, func() {
 				drawTimeMenu(l.bld)
 			})
@@ -788,14 +827,14 @@ func (l *launcher) drawControls() {
 }
 
 func (l *launcher) selectReplay() {
-	bSize := imgui.Vec2{X: (imgui.WindowWidth() - 40) / 4, Y: imgui.TextLineHeight() * 2}
+	bSize := vec2((imgui.WindowWidth()-40)/4, imgui.TextLineHeight()*2)
 
 	imgui.PushFont(Font32)
 
 	if imgui.ButtonV("Select replay", bSize) {
 		p, err := dialog.File().Filter("osu! replay file (*.osr)", "osr").Title("Select replay file").SetStartDir(l.currentConfig.General.GetReplaysDir()).Load()
 		if err == nil {
-			l.loadReplay(p)
+			l.trySelectReplayFromPath(p)
 		}
 	}
 
@@ -820,27 +859,87 @@ func (l *launcher) selectReplay() {
 	imgui.PopFont()
 }
 
-func (l *launcher) loadReplay(p string) {
-	log.Println(p)
+func (l *launcher) trySelectReplayFromPath(p string) {
+	replay, err := l.loadReplay(p)
 
-	rData, err := os.ReadFile(p)
 	if err != nil {
-		showMessage(mError, "Failed to open file:\n%s", err.Error())
+		e := []rune(err.Error())
+		showMessage(mError, string(unicode.ToUpper(e[0]))+string(e[1:]))
 		return
 	}
 
-	replay, err := rplpa.ParseReplay(rData)
-	if err != nil {
-		showMessage(mError, "Failed to open replay:\n%s", err.Error())
-		return
+	l.trySelectReplay(replay)
+}
+
+func (l *launcher) trySelectReplaysFromPaths(p []string) {
+	var errorCollection string
+	var replays []*knockoutReplay
+
+	for _, rPath := range p {
+		replay, err := l.loadReplay(rPath)
+
+		if err != nil {
+			if errorCollection != "" {
+				errorCollection += "\n"
+			}
+
+			errorCollection += fmt.Sprintf("%s:\n\t%s", filepath.Base(rPath), err)
+		} else {
+			replays = append(replays, replay)
+		}
 	}
 
+	if errorCollection != "" {
+		showMessage(mError, "There were errors opening replays:\n%s", errorCollection)
+	}
+
+	if replays != nil && len(replays) > 0 {
+		found := false
+
+		for _, replay := range replays {
+			for _, bMap := range l.beatmaps {
+				if strings.ToLower(bMap.MD5) == strings.ToLower(replay.parsedReplay.BeatmapMD5) {
+					l.bld.currentMode = NewKnockout
+					l.bld.setMap(bMap)
+
+					found = true
+					break
+				}
+			}
+
+			if found {
+				break
+			}
+		}
+
+		if !found {
+			showMessage(mError, "Replays use an unknown map. Please download the map beforehand.")
+		} else {
+			var finalReplays []*knockoutReplay
+
+			for _, replay := range replays {
+				if strings.ToLower(l.bld.currentMap.MD5) == strings.ToLower(replay.parsedReplay.BeatmapMD5) {
+					finalReplays = append(finalReplays, replay)
+				}
+			}
+
+			slices.SortFunc(finalReplays, func(a, b *knockoutReplay) bool {
+				return a.parsedReplay.Score > b.parsedReplay.Score
+			})
+
+			l.bld.knockoutReplays = finalReplays
+		}
+	}
+}
+
+func (l *launcher) trySelectReplay(replay *knockoutReplay) {
 	for _, bMap := range l.beatmaps {
-		if strings.ToLower(bMap.MD5) == strings.ToLower(replay.BeatmapMD5) {
+		if strings.ToLower(bMap.MD5) == strings.ToLower(replay.parsedReplay.BeatmapMD5) {
 			l.bld.currentMode = Replay
-			l.bld.replayPath = p
-			l.bld.currentReplay = replay
+			l.bld.replayPath = replay.path
+			l.bld.currentReplay = replay.parsedReplay
 			l.bld.setMap(bMap)
+
 			return
 		}
 	}
@@ -848,8 +947,95 @@ func (l *launcher) loadReplay(p string) {
 	showMessage(mError, "Replay uses an unknown map. Please download the map beforehand.")
 }
 
+func (l *launcher) newKnockout() {
+	bSize := vec2((imgui.WindowWidth()-40)/4, imgui.TextLineHeight()*2)
+
+	imgui.PushFont(Font32)
+
+	if imgui.ButtonV("Select replays", bSize) {
+		kPath := getAbsPath(launcherConfig.LastKnockoutPath)
+
+		_, err := os.Lstat(kPath)
+		if err != nil {
+			kPath = env.DataDir()
+		}
+
+		p, err := dialog.File().Filter("osu! replay file (*.osr)", "osr").Title("Select replay files").SetStartDir(kPath).LoadMultiple()
+		if err == nil {
+			launcherConfig.LastKnockoutPath = getRelativeOrABSPath(filepath.Dir(p[0]))
+			saveLauncherConfig()
+
+			l.trySelectReplaysFromPaths(p)
+		}
+	}
+
+	imgui.PopFont()
+
+	imgui.PushFont(Font20)
+
+	imgui.IndentV(5)
+
+	if l.bld.knockoutReplays != nil && l.bld.currentMap != nil {
+		b := l.bld.currentMap
+
+		imgui.PushTextWrapPosV(imgui.ContentRegionMax().X / 2)
+
+		imgui.Text(fmt.Sprintf("%s - %s [%s]", b.Artist, b.Name, b.Difficulty))
+
+		imgui.AlignTextToFramePadding()
+
+		imgui.Text(fmt.Sprintf("%d replays loaded", len(l.bld.knockoutReplays)))
+
+		imgui.PopTextWrapPos()
+
+		imgui.SameLine()
+
+		if imgui.Button("Manage##knockout") {
+			l.openPopup(newPopupF("Manage replays", popBig, func() {
+				drawReplayManager(l.bld)
+			}))
+		}
+	} else {
+		imgui.Text("No replays selected")
+	}
+
+	imgui.UnindentV(5)
+
+	imgui.PopFont()
+}
+
+func (l *launcher) loadReplay(p string) (*knockoutReplay, error) {
+	if !strings.HasSuffix(p, ".osr") {
+		return nil, fmt.Errorf("it's not a replay file")
+	}
+
+	rData, err := os.ReadFile(p)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %s", err)
+	}
+
+	replay, err := rplpa.ParseReplay(rData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse replay: %s", err)
+	}
+
+	if replay.ReplayData == nil || len(replay.ReplayData) < 2 {
+		return nil, errors.New("replay is missing input data")
+	}
+
+	// dump unneeded data as it's not needed anymore to save memory
+	replay.LifebarGraph = nil
+	replay.ReplayData = nil
+
+	return &knockoutReplay{
+		path:         p,
+		parsedReplay: replay,
+		included:     true,
+	}, nil
+}
+
 func (l *launcher) showSelect() {
-	bSize := imgui.Vec2{X: (imgui.WindowWidth() - 40) / 4, Y: imgui.TextLineHeight() * 2}
+	bSize := vec2((imgui.WindowWidth()-40)/4, imgui.TextLineHeight()*2)
 
 	imgui.PushFont(Font32)
 
@@ -896,16 +1082,13 @@ func (l *launcher) drawLowerPanel() {
 			spacing *= 2
 		}
 
-		imgui.SetCursorPos(imgui.Vec2{
-			X: 20,
-			Y: h - spacing,
-		})
+		imgui.SetCursorPos(vec2(20, h-spacing))
 
 		imgui.SetNextItemWidth((imgui.WindowWidth() - 40) / 4)
 
 		if imgui.BeginCombo("##Watch mode", l.bld.currentPMode.String()) {
 			for _, m := range pModes {
-				if imgui.SelectableV(m.String(), l.bld.currentPMode == m, 0, imgui.Vec2{}) {
+				if imgui.SelectableV(m.String(), l.bld.currentPMode == m, 0, vzero()) {
 					l.bld.currentPMode = m
 				}
 			}
@@ -922,10 +1105,7 @@ func (l *launcher) drawLowerPanel() {
 			}
 		}
 
-		imgui.SetCursorPos(imgui.Vec2{
-			X: imgui.WindowContentRegionMin().X,
-			Y: float32(h) - imgui.FrameHeightWithSpacing(),
-		})
+		imgui.SetCursorPos(vec2(imgui.WindowContentRegionMin().X, h-imgui.FrameHeightWithSpacing()))
 
 		if showProgress {
 			if strings.HasPrefix(l.recordStatus, "Done") {
@@ -939,7 +1119,7 @@ func (l *launcher) drawLowerPanel() {
 				imgui.PushStyleColor(imgui.StyleColorPlotHistogram, imgui.CurrentStyle().Color(imgui.StyleColorCheckMark))
 			}
 
-			imgui.ProgressBarV(l.recordProgress, imgui.Vec2{w / 2, imgui.FrameHeight()}, l.recordStatus)
+			imgui.ProgressBarV(l.recordProgress, vec2(w/2, imgui.FrameHeight()), l.recordStatus)
 
 			if l.encodeInProgress {
 				imgui.PushFont(Font16)
@@ -973,17 +1153,16 @@ func (l *launcher) drawLowerPanel() {
 
 	bW := (w) / 4
 
-	imgui.SetCursorPos(imgui.Vec2{
-		X: imgui.WindowContentRegionMax().X - w/2.5,
-		Y: float32(h) - imgui.FrameHeightWithSpacing()*2,
-	})
+	imgui.SetCursorPos(vec2(imgui.WindowContentRegionMax().X-w/2.5, h-imgui.FrameHeightWithSpacing()*2))
 
 	centerTable("dansebutton", w/2.5, func() {
 		imgui.PushFont(Font48)
 		{
 			dRun := l.danserRunning && l.bld.currentPMode == Record
 
-			s := (l.bld.currentMode == Replay && l.bld.currentReplay == nil) || (l.bld.currentMode != Replay && l.bld.currentMap == nil)
+			s := (l.bld.currentMode == Replay && l.bld.currentReplay == nil) ||
+				(l.bld.currentMode != Replay && l.bld.currentMap == nil) ||
+				(l.bld.currentMode == NewKnockout && l.bld.numKnockoutReplays() == 0)
 
 			if !dRun {
 				if s {
@@ -998,7 +1177,7 @@ func (l *launcher) drawLowerPanel() {
 				name = "CANCEL"
 			}
 
-			if imgui.ButtonV(name, imgui.Vec2{X: bW, Y: fHwS}) {
+			if imgui.ButtonV(name, vec2(bW, fHwS)) {
 				if dRun {
 					if l.danserCmd != nil {
 						goroutines.Run(func() {
@@ -1046,18 +1225,15 @@ func (l *launcher) drawLowerPanel() {
 func (l *launcher) drawConfigPanel() {
 	w := imgui.WindowContentRegionMax().X
 
-	imgui.SetCursorPos(imgui.Vec2{
-		X: imgui.WindowContentRegionMax().X - float32(w)/2.5,
-		Y: 20,
-	})
+	imgui.SetCursorPos(vec2(imgui.WindowContentRegionMax().X-float32(w)/2.5, 20))
 
-	if imgui.BeginTableV("rtpanel", 2, imgui.TableFlagsSizingStretchProp, imgui.Vec2{float32(w) / 2.5, 0}, -1) {
+	if imgui.BeginTableV("rtpanel", 2, imgui.TableFlagsSizingStretchProp, vec2(float32(w)/2.5, 0), -1) {
 		imgui.TableSetupColumnV("rtpanel1", imgui.TableColumnFlagsWidthStretch, 0, 0)
 		imgui.TableSetupColumnV("rtpanel2", imgui.TableColumnFlagsWidthFixed, 0, 1)
 
 		imgui.TableNextColumn()
 
-		if imgui.ButtonV("Launcher settings", imgui.Vec2{-1, 0}) {
+		if imgui.ButtonV("Launcher settings", vec2(-1, 0)) {
 			lEditor := newPopupF("About", popMedium, drawLauncherConfig)
 
 			lEditor.setCloseListener(func() {
@@ -1106,7 +1282,7 @@ func (l *launcher) drawConfigPanel() {
 
 			imgui.PushStyleVarFloat(imgui.StyleVarFrameRounding, 0)
 			imgui.PushStyleVarFloat(imgui.StyleVarFrameBorderSize, 0)
-			imgui.PushStyleVarVec2(imgui.StyleVarFramePadding, imgui.Vec2{})
+			imgui.PushStyleVarVec2(imgui.StyleVarFramePadding, vzero())
 			imgui.PushStyleColor(imgui.StyleColorFrameBg, imgui.Vec4{X: 0, Y: 0, Z: 0, W: 0})
 
 			searchResults := make([]string, 0, len(l.configList))
@@ -1122,7 +1298,7 @@ func (l *launcher) drawConfigPanel() {
 			if len(searchResults) > 0 {
 				sHeight := float32(mutils.Min(8, len(searchResults)))*imgui.FrameHeightWithSpacing() - imgui.CurrentStyle().ItemSpacing().Y/2
 
-				if imgui.BeginListBoxV("##blistbox", imgui.Vec2{mWidth, sHeight}) {
+				if imgui.BeginListBoxV("##blistbox", vec2(mWidth, sHeight)) {
 					focusScroll = focusScroll || imgui.IsWindowAppearing()
 
 					for _, s := range searchResults {
@@ -1135,7 +1311,7 @@ func (l *launcher) drawConfigPanel() {
 						if imgui.IsMouseClicked(1) && imgui.IsItemHovered() {
 							l.configEditOpened = true
 
-							imgui.SetNextWindowPosV(imgui.MousePos(), imgui.ConditionAlways, imgui.Vec2{})
+							imgui.SetNextWindowPosV(imgui.MousePos(), imgui.ConditionAlways, vzero())
 
 							imgui.OpenPopup("##context" + s)
 						}
@@ -1185,7 +1361,7 @@ func (l *launcher) drawConfigPanel() {
 
 		imgui.TableNextColumn()
 
-		if imgui.ButtonV("Edit", imgui.Vec2{-1, 0}) {
+		if imgui.ButtonV("Edit", vec2(-1, 0)) {
 			sEditor := newSettingsEditor(l.currentConfig)
 
 			sEditor.setCloseListener(func() {
@@ -1214,20 +1390,7 @@ func (l *launcher) drawConfigPanel() {
 
 				imgui.SetNextItemWidth(imgui.TextLineHeight() * 10)
 
-				if imgui.InputTextV("##nclonename", &l.newCloneName /*imgui.InputTextFlagsCallbackAlways|*/, imgui.InputTextFlagsCallbackCharFilter, func(data imgui.InputTextCallbackData) int32 {
-					if data.EventFlag() == imgui.InputTextFlagsCallbackCharFilter {
-						run := data.EventChar()
-
-						switch run {
-						case '\\':
-							data.SetEventChar('/')
-						case '<', '>', '|', '?', '*', ':', '"':
-							data.SetEventChar(0)
-						}
-					}
-
-					return 0
-				}) {
+				if imgui.InputTextV("##nclonename", &l.newCloneName, imgui.InputTextFlagsCallbackCharFilter, imguiPathFilter) {
 					l.newCloneName = strings.TrimSpace(l.newCloneName)
 				}
 
@@ -1239,10 +1402,7 @@ func (l *launcher) drawConfigPanel() {
 
 				cPos := imgui.CursorPos()
 
-				imgui.SetCursorPos(imgui.Vec2{
-					X: cPos.X + (imgui.ContentRegionAvail().X-imgui.CalcTextSize("Save", false, 0).X-imgui.CurrentStyle().FramePadding().X*2)/2,
-					Y: cPos.Y,
-				})
+				imgui.SetCursorPos(vec2(cPos.X+(imgui.ContentRegionAvail().X-imgui.CalcTextSize("Save", false, 0).X-imgui.CurrentStyle().FramePadding().X*2)/2, cPos.Y))
 
 				e := l.newCloneName == ""
 
@@ -1391,19 +1551,6 @@ func (l *launcher) setConfig(s string) {
 	}
 }
 
-// covers cases:
-// one of them is an abs path to data dir
-// has path separator suffixed
-// one of them has backwards slashes
-func compareDirs(str1, str2 string) bool {
-	abPath := strings.TrimSuffix(strings.ReplaceAll(env.DataDir(), "\\", "/"), "/") + "/"
-
-	str1D := strings.TrimSuffix(strings.ReplaceAll(str1, "\\", "/"), "/")
-	str2D := strings.TrimSuffix(strings.ReplaceAll(str2, "\\", "/"), "/")
-
-	return strings.TrimPrefix(str1D, abPath) == strings.TrimPrefix(str2D, abPath)
-}
-
 func (l *launcher) startDanser() {
 	l.recordProgress = 0
 	l.recordStatus = ""
@@ -1524,7 +1671,12 @@ func (l *launcher) startDanser() {
 			panicWait.Wait()
 
 			mainthread.Call(func() {
-				showMessage(mError, "danser crashed! %s\n\n%s", err.Error(), panicMessage)
+				pMsg := panicMessage
+				if idx := strings.Index(pMsg, "Error:"); idx > -1 {
+					pMsg = pMsg[:idx-1] + "\n\n" + pMsg[idx+7:]
+				}
+
+				showMessage(mError, "danser crashed! %s\n\n%s", err.Error(), pMsg)
 			})
 		} else if l.bld.currentPMode != Watch && l.bld.currentMode != Play {
 			if launcherConfig.ShowFileAfter && resultFile != "" {

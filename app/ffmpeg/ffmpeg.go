@@ -112,7 +112,7 @@ func combine() {
 		"-i", filepath.Join(settings.Recording.GetOutputDir(), output+"_temp", "video."+settings.Recording.Container),
 		"-i", filepath.Join(settings.Recording.GetOutputDir(), output+"_temp", "audio."+settings.Recording.Container),
 		"-c:v", "copy",
-		"-c:a", "copy",
+		"-c:a", "copy", "-strict", "-2",
 	}
 
 	if settings.Recording.Container == "mp4" {
@@ -136,7 +136,7 @@ func combine() {
 		log.Println("Failed to start ffmpeg:", err)
 	} else {
 		if err = cmd2.Wait(); err != nil {
-			log.Println("ffmpeg finished abruptly! Please check if you have enough storage. Error:", err)
+			panic(fmt.Sprintf("ffmpeg finished abruptly! Please check if you have enough storage. Error: %s", err))
 		} else {
 			log.Println("Finished!")
 			log.Println("Video is available at:", finalOutputPath)
