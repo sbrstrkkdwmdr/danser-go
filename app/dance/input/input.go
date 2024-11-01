@@ -53,7 +53,6 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 			}
 
 			if processor.lastTime < gStartTime && time >= gStartTime {
-				startTime := gStartTime
 				endTime := gEndTime
 
 				releaseAt := endTime + 50.0
@@ -91,7 +90,7 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 					}
 				}
 
-				shouldBeLeft := !processor.wasLeftBefore && startTime-processor.previousEnd < singleTapThreshold
+				shouldBeLeft := !processor.wasLeftBefore //&& startTime-processor.previousEnd < singleTapThreshold
 
 				if isDoubleClick {
 					processor.releaseLeftAt = releaseAt
