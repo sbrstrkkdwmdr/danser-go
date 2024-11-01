@@ -32,7 +32,7 @@ func NewNaturalInputProcessor(objs []objects.IHitObject, cursor *graphics.Cursor
 	processor.releaseRightKAt = -10000000
 	processor.releaseLeftMAt = -10000000
 processor.releaseRightMAt = -10000000
-processor.index = 0
+processor.index = 3
 
 	copy(processor.queue, objs)
 
@@ -101,29 +101,35 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 
 				if isDoubleClick {
 					switch(processor.index){
-					case 0:default:
-						processor.releaseLeftKAt = releaseAt
-						processor.releaseRightKAt = releaseAt
+					case 0:
+						processor.releaseLeftKAt = releaseAt;
+						processor.releaseRightKAt = releaseAt;
+						
 					case 1:
 						processor.releaseRightKAt = releaseAt;
-						processor.releaseLeftMAt = releaseAt;
+						processor.releaseRightMAt = releaseAt;
+						
 					case 2:
 						processor.releaseLeftMAt = releaseAt;
 						processor.releaseRightMAt = releaseAt;
+						
 					case 3:
-						processor.releaseRightMAt = releaseAt;
-						processor.releaseLeftKAt = releaseAt
+						processor.releaseLeftMAt = releaseAt;
+						processor.releaseLeftKAt = releaseAt;
 					}
 				} else  {
 					switch(processor.index){
-					case 0:default:
+					case 0:
 						processor.releaseLeftKAt = releaseAt;
+						
 					case 1:
 						processor.releaseRightKAt = releaseAt;
+						
 					case 2:
-						processor.releaseLeftMAt = releaseAt;
-					case 3:
 						processor.releaseRightMAt = releaseAt;
+					case 3:
+						processor.releaseLeftMAt = releaseAt;
+						
 					}
 				}
 
