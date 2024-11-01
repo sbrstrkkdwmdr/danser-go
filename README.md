@@ -4,7 +4,7 @@
 
 # danser-go
 
-**edited to make danser's inputs alternate between key and mouse inputs**
+**edited to make danser's inputs alternate between key and mouse inputs in an up-down way**
 
 [![GitHub release](https://img.shields.io/github/release/wieku/danser-go.svg)](https://github.com/Wieku/danser-go/releases/latest)
 [![CodeFactor](https://www.codefactor.io/repository/github/wieku/danser-go/badge)](https://www.codefactor.io/repository/github/wieku/danser-go)

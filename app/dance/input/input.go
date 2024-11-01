@@ -13,12 +13,12 @@ type NaturalInputProcessor struct {
 
 	lastTime float64
 
-	wasLeftBefore  bool
 	previousEnd    float64
 	releaseLeftKAt  float64
 	releaseRightKAt float64
 	releaseLeftMAt float64
 	releaseRightMAt float64
+	keyDirectionUp bool
 	mover          movers.MultiPointMover
 	index int32
 }
@@ -32,8 +32,8 @@ func NewNaturalInputProcessor(objs []objects.IHitObject, cursor *graphics.Cursor
 	processor.releaseRightKAt = -10000000
 	processor.releaseLeftMAt = -10000000
 processor.releaseRightMAt = -10000000
-processor.index = 3
-
+processor.index = -1
+processor.keyDirectionUp = true
 	copy(processor.queue, objs)
 
 	return processor
@@ -94,9 +94,16 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 					}
 				}
 
+				if(processor.keyDirectionUp){
 				processor.index+=1;
-				if(processor.index > 3){
-					processor.index = 0;
+				if(processor.index >= 3){
+					processor.keyDirectionUp = false;
+				}
+				} else {
+					processor.index-=1;
+					if(processor.index <= 0){
+						processor.keyDirectionUp = true;
+					}
 				}
 
 				if isDoubleClick {
