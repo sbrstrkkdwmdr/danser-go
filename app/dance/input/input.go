@@ -23,6 +23,7 @@ type NaturalInputProcessor struct {
 	releaseRightMAt float64
 	mover          movers.MultiPointMover
 	index int
+	lastKey int
 }
 
 func NewNaturalInputProcessor(objs []objects.IHitObject, cursor *graphics.Cursor, mover movers.MultiPointMover) *NaturalInputProcessor {
@@ -35,6 +36,7 @@ func NewNaturalInputProcessor(objs []objects.IHitObject, cursor *graphics.Cursor
 	processor.releaseLeftMAt = -10000000
 processor.releaseRightMAt = -10000000
 processor.index = 3
+processor.lastKey = 3
 
 	copy(processor.queue, objs)
 
@@ -96,8 +98,8 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 					}
 				}
 
-				processor.index = randomthingy();
-
+				processor.index = randomthingy(processor);
+				processor.lastKey = processor.index;
 				if isDoubleClick {
 					switch(processor.index){
 					case 0:
@@ -149,9 +151,13 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 	processor.lastTime = time
 }
 
-func randomthingy() int {
+func randomthingy(processor *NaturalInputProcessor) int {
 	min := 0;
 	max := 4;
 	i := (rand.Intn(max - min));
-	return i;
+	if(processor.lastKey == i){
+		return randomthingy(processor);
+	} else {
+		return i;
+	}
 } //eee
