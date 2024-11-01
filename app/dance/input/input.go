@@ -7,8 +7,6 @@ import (
 	"github.com/wieku/danser-go/framework/math/mutils"
 )
 
-const singleTapThreshold = 140
-
 type NaturalInputProcessor struct {
 	queue  []objects.IHitObject
 	cursor *graphics.Cursor
@@ -17,9 +15,12 @@ type NaturalInputProcessor struct {
 
 	wasLeftBefore  bool
 	previousEnd    float64
-	releaseLeftAt  float64
-	releaseRightAt float64
+	releaseLeftKAt  float64
+	releaseRightKAt float64
+	releaseLeftMAt float64
+	releaseRightMAt float64
 	mover          movers.MultiPointMover
+	index int32
 }
 
 func NewNaturalInputProcessor(objs []objects.IHitObject, cursor *graphics.Cursor, mover movers.MultiPointMover) *NaturalInputProcessor {
@@ -27,8 +28,11 @@ func NewNaturalInputProcessor(objs []objects.IHitObject, cursor *graphics.Cursor
 	processor.mover = mover
 	processor.cursor = cursor
 	processor.queue = make([]objects.IHitObject, len(objs))
-	processor.releaseLeftAt = -10000000
-	processor.releaseRightAt = -10000000
+	processor.releaseLeftKAt = -10000000
+	processor.releaseRightKAt = -10000000
+	processor.releaseLeftMAt = -10000000
+processor.releaseRightMAt = -10000000
+processor.index = 0
 
 	copy(processor.queue, objs)
 
@@ -90,18 +94,38 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 					}
 				}
 
-				shouldBeLeft := !processor.wasLeftBefore //&& startTime-processor.previousEnd < singleTapThreshold
-
-				if isDoubleClick {
-					processor.releaseLeftAt = releaseAt
-					processor.releaseRightAt = releaseAt
-				} else if shouldBeLeft {
-					processor.releaseLeftAt = releaseAt
-				} else {
-					processor.releaseRightAt = releaseAt
+				processor.index+=1;
+				if(processor.index > 3){
+					processor.index = 0;
 				}
 
-				processor.wasLeftBefore = shouldBeLeft
+				if isDoubleClick {
+					switch(processor.index){
+					case 0:default:
+						processor.releaseLeftKAt = releaseAt
+						processor.releaseRightKAt = releaseAt
+					case 1:
+						processor.releaseRightKAt = releaseAt;
+						processor.releaseLeftMAt = releaseAt;
+					case 2:
+						processor.releaseLeftMAt = releaseAt;
+						processor.releaseRightMAt = releaseAt;
+					case 3:
+						processor.releaseRightMAt = releaseAt;
+						processor.releaseLeftKAt = releaseAt
+					}
+				} else  {
+					switch(processor.index){
+					case 0:default:
+						processor.releaseLeftKAt = releaseAt;
+					case 1:
+						processor.releaseRightKAt = releaseAt;
+					case 2:
+						processor.releaseLeftMAt = releaseAt;
+					case 3:
+						processor.releaseRightMAt = releaseAt;
+					}
+				}
 
 				processor.previousEnd = endTime
 
@@ -112,8 +136,10 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 		}
 	}
 
-	processor.cursor.LeftKey = time < processor.releaseLeftAt
-	processor.cursor.RightKey = time < processor.releaseRightAt
+	processor.cursor.LeftKey = time < processor.releaseLeftKAt
+	processor.cursor.RightKey = time < processor.releaseRightKAt
+	processor.cursor.RightMouse = time < processor.releaseLeftMAt
+	processor.cursor.LeftMouse = time < processor.releaseRightMAt
 
 	processor.lastTime = time
 }
