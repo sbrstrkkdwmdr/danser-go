@@ -1,6 +1,8 @@
 package input
 
 import (
+	"math/rand"
+
 	"github.com/wieku/danser-go/app/beatmap/objects"
 	"github.com/wieku/danser-go/app/dance/movers"
 	"github.com/wieku/danser-go/app/graphics"
@@ -20,7 +22,7 @@ type NaturalInputProcessor struct {
 	releaseLeftMAt float64
 	releaseRightMAt float64
 	mover          movers.MultiPointMover
-	index int32
+	index int
 }
 
 func NewNaturalInputProcessor(objs []objects.IHitObject, cursor *graphics.Cursor, mover movers.MultiPointMover) *NaturalInputProcessor {
@@ -94,10 +96,7 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 					}
 				}
 
-				processor.index+=1;
-				if(processor.index > 3){
-					processor.index = 0;
-				}
+				processor.index = randomthingy();
 
 				if isDoubleClick {
 					switch(processor.index){
@@ -149,3 +148,10 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 
 	processor.lastTime = time
 }
+
+func randomthingy() int {
+	min := 0;
+	max := 4;
+	i := (rand.Intn(max - min));
+	return i;
+} //eee
