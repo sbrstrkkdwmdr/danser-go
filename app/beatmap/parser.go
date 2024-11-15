@@ -240,7 +240,9 @@ func ParseBeatMap(beatMap *BeatMap) error {
 
 func ParseBeatMapFile(file *os.File) *BeatMap {
 	beatMap := NewBeatMap()
-	beatMap.Dir = filepath.Base(filepath.Dir(file.Name()))
+	beatMap.Dir, _ = filepath.Rel(settings.General.GetSongsDir(), filepath.Dir(file.Name()))
+	beatMap.Dir = filepath.ToSlash(beatMap.Dir)
+
 	f, _ := file.Stat()
 	beatMap.File = f.Name()
 
@@ -377,6 +379,7 @@ func ParseObjects(beatMap *BeatMap, diffCalcOnly, parseColors bool) {
 		iO.SetComboNumber(int64(comboNumber))
 		iO.SetComboSet(int64(comboSet))
 		iO.SetComboSetHax(int64(comboSetHax))
+		iO.SetStackLeniency(beatMap.StackLeniency)
 
 		comboNumber++
 		num++
@@ -386,5 +389,7 @@ func ParseObjects(beatMap *BeatMap, diffCalcOnly, parseColors bool) {
 		obj.SetTiming(beatMap.Timings, beatMap.Version, diffCalcOnly)
 	}
 
-	calculateStackLeniency(beatMap, diffCalcOnly)
+	if settings.Objects.StackEnabled || settings.KNOCKOUT || settings.PLAY || diffCalcOnly {
+		beatMap.CalculateStackLeniency(beatMap.Diff)
+	}
 }
