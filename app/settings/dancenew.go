@@ -73,6 +73,8 @@ func (d *defaultsFactory) InitSpinner() *spinner {
 }
 
 type cursorDance struct {
+	KeyInType		   string     `label:"Key Input Type" combo:"normal|Default,alt|Alternating,random|Random Key,descending|Descending,ascending|Ascending,bounce|Bouncing"`
+	KeyMouse 		   string     `label:"Keyboard Or Mouse" combo:"k|Keyboard,m|Mouse" showif:"KeyInType=normal,alt"`
 	Movers             []*mover   `new:"InitMover"`
 	Spinners           []*spinner `new:"InitSpinner"`
 	ComboTag           bool       `liveedit:"false"`

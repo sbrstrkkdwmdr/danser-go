@@ -1,9 +1,12 @@
 package input
 
 import (
+	"math/rand"
+
 	"github.com/wieku/danser-go/app/beatmap/objects"
 	"github.com/wieku/danser-go/app/dance/movers"
 	"github.com/wieku/danser-go/app/graphics"
+	"github.com/wieku/danser-go/app/settings"
 	"github.com/wieku/danser-go/framework/math/mutils"
 )
 
@@ -20,8 +23,11 @@ type NaturalInputProcessor struct {
 	releaseRightMAt float64
 	keyDirectionUp bool
 	mover          movers.MultiPointMover
-	index int32
+	lastKey int
+	index int
 }
+
+const singleTapThreshold = 140
 
 func NewNaturalInputProcessor(objs []objects.IHitObject, cursor *graphics.Cursor, mover movers.MultiPointMover) *NaturalInputProcessor {
 	processor := new(NaturalInputProcessor)
@@ -31,9 +37,10 @@ func NewNaturalInputProcessor(objs []objects.IHitObject, cursor *graphics.Cursor
 	processor.releaseLeftKAt = -10000000
 	processor.releaseRightKAt = -10000000
 	processor.releaseLeftMAt = -10000000
-processor.releaseRightMAt = -10000000
-processor.index = -1
-processor.keyDirectionUp = true
+	processor.releaseRightMAt = -10000000
+	processor.lastKey = -1
+	processor.index = -1
+	processor.keyDirectionUp = true
 	copy(processor.queue, objs)
 
 	return processor
@@ -57,6 +64,7 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 			}
 
 			if processor.lastTime < gStartTime && time >= gStartTime {
+				startTime := gStartTime
 				endTime := gEndTime
 
 				releaseAt := endTime + 50.0
@@ -94,50 +102,62 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 					}
 				}
 
-				if(processor.keyDirectionUp){
-				processor.index+=1;
-				if(processor.index >= 3){
-					processor.keyDirectionUp = false;
-				}
-				} else {
-					processor.index-=1;
-					if(processor.index <= 0){
-						processor.keyDirectionUp = true;
-					}
-				}
+				switch (settings.CursorDance.KeyInType) {
+					default:case "normal": // default
+					processor.index+=1;
+					shouldBeLeft := processor.index != 1 && startTime-processor.previousEnd < singleTapThreshold
 
 				if isDoubleClick {
-					switch(processor.index){
-					case 0:
+					processor.releaseLeftKAt = releaseAt
+					processor.releaseRightKAt = releaseAt
+				} else if shouldBeLeft {
+					processor.releaseLeftKAt = releaseAt
+					processor.index = 0;
+				} else {
+					processor.releaseRightKAt = releaseAt
+					processor.index = -1;
+				}
+				processor = mouseInputs(processor);
+				case "alt": // full alts 
+					processor.index+=1;
+					if(processor.index % 2 == 0){
 						processor.releaseLeftKAt = releaseAt;
+					} else {
 						processor.releaseRightKAt = releaseAt;
-						
-					case 1:
-						processor.releaseRightKAt = releaseAt;
-						processor.releaseRightMAt = releaseAt;
-						
-					case 2:
-						processor.releaseLeftMAt = releaseAt;
-						processor.releaseRightMAt = releaseAt;
-						
-					case 3:
-						processor.releaseLeftMAt = releaseAt;
-						processor.releaseLeftKAt = releaseAt;
 					}
-				} else  {
-					switch(processor.index){
-					case 0:
-						processor.releaseLeftKAt = releaseAt;
-						
-					case 1:
-						processor.releaseRightKAt = releaseAt;
-						
-					case 2:
-						processor.releaseRightMAt = releaseAt;
-					case 3:
-						processor.releaseLeftMAt = releaseAt;
-						
+					if(processor.index >=2){
+						processor.index = 0;
 					}
+				processor = mouseInputs(processor);
+				case "random": // picks a random key
+					processor.index = randomKey(processor);
+					processor.lastKey = processor.index;
+					processor = processKeys(processor, releaseAt, isDoubleClick);
+				case "descending": // inputs "descend"
+					processor.index+=1;
+					processor = processKeys(processor, releaseAt, isDoubleClick);
+					if(processor.index >= 3){
+						processor.index = -1;
+					}
+				case "ascending": 
+					processor.index-=1;
+					processor = processKeys(processor, releaseAt, isDoubleClick);
+					if(processor.index <= 0){
+						processor.index = 4;
+					}
+				case "bounce":
+					if(processor.keyDirectionUp){
+					processor.index+=1;
+					if(processor.index >= 3){
+						processor.keyDirectionUp = false;
+					}
+					} else {
+						processor.index-=1;
+						if(processor.index <= 0){
+							processor.keyDirectionUp = true;
+						}
+					}
+					processor = processKeys(processor, releaseAt, isDoubleClick);
 				}
 
 				processor.previousEnd = endTime
@@ -155,4 +175,63 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 	processor.cursor.LeftMouse = time < processor.releaseRightMAt
 
 	processor.lastTime = time
+}
+
+func randomKey(processor *NaturalInputProcessor) int {
+	min := 0;
+	max := 4;
+	i := (rand.Intn(max - min));
+	// prevent same key being tapped in a row
+	if(processor.lastKey == i){
+		return randomKey(processor);
+	} else {
+		return i;
+	}
+}
+
+func processKeys(processor *NaturalInputProcessor, releaseAt float64, isDoubleClick bool) *NaturalInputProcessor {
+	if isDoubleClick {
+		switch(processor.index){
+		case 0:
+			processor.releaseLeftKAt = releaseAt;
+			processor.releaseRightKAt = releaseAt;
+			
+		case 1:
+			processor.releaseRightKAt = releaseAt;
+			processor.releaseRightMAt = releaseAt;
+			
+		case 2:
+			processor.releaseLeftMAt = releaseAt;
+			processor.releaseRightMAt = releaseAt;
+			
+		case 3:
+			processor.releaseLeftMAt = releaseAt;
+			processor.releaseLeftKAt = releaseAt;
+		}
+	} else  {
+		switch(processor.index){
+		case 0:
+			processor.releaseLeftKAt = releaseAt;
+			
+		case 1:
+			processor.releaseRightKAt = releaseAt;
+			
+		case 2:
+			processor.releaseRightMAt = releaseAt;
+		case 3:
+			processor.releaseLeftMAt = releaseAt;
+			
+		}
+	}
+	return processor;
+}
+
+func mouseInputs(processor *NaturalInputProcessor) *NaturalInputProcessor {
+	if(settings.CursorDance.KeyMouse == "m"){
+		processor.releaseLeftMAt = processor.releaseLeftKAt;
+		processor.releaseRightMAt = processor.releaseRightKAt;
+		processor.releaseLeftKAt = -10000000;
+		processor.releaseRightKAt= -10000000;
+	}
+	return processor;
 }
