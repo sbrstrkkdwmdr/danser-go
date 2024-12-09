@@ -2,6 +2,7 @@ package osuapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/url"
 	"strconv"
@@ -70,9 +71,9 @@ func GetScores(beatmapId int64, legacyOnly bool, mode ScoreType, limit int, mods
 			vls.Add("mods[]", m)
 		}
 	}
-
+	
+	fmt.Println("API REQUEST TO: beatmaps/" + strconv.FormatInt(beatmapId, 10) + "/" + prefix + "scores?" + vls.Encode());
 	resp, err := makeRequest("beatmaps/" + strconv.FormatInt(beatmapId, 10) + "/" + prefix + "scores?" + vls.Encode())
-
 	if err != nil {
 		return nil, err
 	}

@@ -4,6 +4,9 @@ var CursorDance = initCursorDance()
 
 func initCursorDance() *cursorDance {
 	return &cursorDance{
+		KeyInType:       "normal",
+		KeyMouse:        "k",
+		KeyRandomRepeat: false,
 		Movers: []*mover{
 			DefaultsFactory.InitMover(),
 		},
@@ -74,7 +77,8 @@ func (d *defaultsFactory) InitSpinner() *spinner {
 
 type cursorDance struct {
 	KeyInType		   string     `label:"Key Input Type" combo:"normal|Default,alt|Alternating,random|Random Key,descending|Descending,ascending|Ascending,bounce|Bouncing"`
-	KeyMouse 		   string     `label:"Keyboard Or Mouse" combo:"k|Keyboard,m|Mouse" showif:"KeyInType=normal,alt"`
+	KeyMouse 		   string     `label:"Use key or mouse inputs" combo:"k|Keyboard,m|Mouse" showif:"KeyInType=normal,alt"`
+	KeyRandomRepeat    bool       `label:"Allow random keys to repeat" showif:"KeyInType=random"`
 	Movers             []*mover   `new:"InitMover"`
 	Spinners           []*spinner `new:"InitSpinner"`
 	ComboTag           bool       `liveedit:"false"`

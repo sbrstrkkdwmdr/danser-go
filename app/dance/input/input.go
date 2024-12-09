@@ -182,7 +182,7 @@ func randomKey(processor *NaturalInputProcessor) int {
 	max := 4;
 	i := (rand.Intn(max - min));
 	// prevent same key being tapped in a row
-	if(processor.lastKey == i){
+	if(processor.lastKey == i && !settings.CursorDance.KeyRandomRepeat){
 		return randomKey(processor);
 	} else {
 		return i;
