@@ -155,19 +155,19 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 					shouldBeLeft := processor.index != 1 && startTime-processor.previousEnd < singleTapThreshold
 					if isDoubleClick {
 						processor.releaseRightKAt = releaseAt
-						processor.releaseRightMAt = releaseAt
+						processor.releaseLeftMAt = releaseAt
 					} else if shouldBeLeft {
 						processor.releaseRightKAt = releaseAt 
 						processor.index = 0;
 					} else {
-						processor.releaseRightMAt = releaseAt
+						processor.releaseLeftMAt = releaseAt
 						processor.index = -1;
 					}
 				case "tapzx":
 					isStream := startTime-processor.previousEnd < singleTapThreshold
 					if isDoubleClick {
 						processor.releaseRightKAt = releaseAt
-						processor.releaseLeftMAt = releaseAt
+						processor.releaseRightMAt = releaseAt
 					} else if isStream {
 						processor.index+=1;
 						if(processor.index % 2 == 0){
@@ -179,7 +179,7 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 							processor.index = 0;
 						}
 					} else {
-						processor.releaseRightMAt = releaseAt
+						processor.releaseLeftMAt = releaseAt
 					}
 				case "random": // picks a random key
 					processor.index = randomKey(processor);
@@ -223,8 +223,8 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 
 	processor.cursor.LeftKey = time < processor.releaseLeftKAt
 	processor.cursor.RightKey = time < processor.releaseRightKAt
-	processor.cursor.RightMouse = time < processor.releaseLeftMAt
-	processor.cursor.LeftMouse = time < processor.releaseRightMAt
+	processor.cursor.RightMouse = time < processor.releaseRightMAt
+	processor.cursor.LeftMouse = time < processor.releaseLeftMAt
 
 	processor.lastTime = time
 }
@@ -250,14 +250,13 @@ func processKeys(processor *NaturalInputProcessor, releaseAt float64, isDoubleCl
 			
 		case 1:
 			processor.releaseRightKAt = releaseAt;
-			processor.releaseRightMAt = releaseAt;
+			processor.releaseLeftMAt = releaseAt;
 			
 		case 2:
 			processor.releaseLeftMAt = releaseAt;
 			processor.releaseRightMAt = releaseAt;
-			
 		case 3:
-			processor.releaseLeftMAt = releaseAt;
+			processor.releaseRightMAt = releaseAt;
 			processor.releaseLeftKAt = releaseAt;
 		}
 	} else  {
@@ -267,11 +266,10 @@ func processKeys(processor *NaturalInputProcessor, releaseAt float64, isDoubleCl
 			
 		case 1:
 			processor.releaseRightKAt = releaseAt;
-			
 		case 2:
-			processor.releaseRightMAt = releaseAt;
-		case 3:
 			processor.releaseLeftMAt = releaseAt;
+		case 3:
+			processor.releaseRightMAt = releaseAt;
 			
 		}
 	}
@@ -280,8 +278,8 @@ func processKeys(processor *NaturalInputProcessor, releaseAt float64, isDoubleCl
 
 func mouseInputs(processor *NaturalInputProcessor) *NaturalInputProcessor {
 	if(settings.CursorDance.KeyMouse == "m"){
-		processor.releaseLeftMAt = processor.releaseLeftKAt;
-		processor.releaseRightMAt = processor.releaseRightKAt;
+		processor.releaseRightMAt = processor.releaseLeftKAt;
+		processor.releaseLeftMAt = processor.releaseRightKAt;
 		processor.releaseLeftKAt = -10000000;
 		processor.releaseRightKAt= -10000000;
 	}
