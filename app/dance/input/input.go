@@ -2,6 +2,7 @@ package input
 
 import (
 	"math/rand"
+	"strings"
 
 	"github.com/wieku/danser-go/app/beatmap/objects"
 	"github.com/wieku/danser-go/app/dance/movers"
@@ -129,6 +130,57 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 						processor.index = 0;
 					}
 				processor = mouseInputs(processor);
+				case "single":
+					switch(settings.CursorDance.SingleTapKey){
+					case "k1":
+							processor.releaseLeftKAt = releaseAt;
+					case "k2":
+							processor.releaseRightKAt = releaseAt;
+					case "m1":
+							processor.releaseLeftMAt = releaseAt;
+					case "m2":
+							processor.releaseRightMAt = releaseAt;
+					}
+					if isDoubleClick {
+						if strings.Contains(settings.CursorDance.SingleTapKey,"k"){
+							processor.releaseLeftKAt = releaseAt
+							processor.releaseRightKAt = releaseAt
+						} else {
+							processor.releaseLeftMAt = releaseAt
+							processor.releaseRightMAt = releaseAt
+						}
+					}
+				case "tapx":
+					processor.index+=1;
+					shouldBeLeft := processor.index != 1 && startTime-processor.previousEnd < singleTapThreshold
+					if isDoubleClick {
+						processor.releaseRightKAt = releaseAt
+						processor.releaseRightMAt = releaseAt
+					} else if shouldBeLeft {
+						processor.releaseRightKAt = releaseAt 
+						processor.index = 0;
+					} else {
+						processor.releaseRightMAt = releaseAt
+						processor.index = -1;
+					}
+				case "tapzx":
+					isStream := startTime-processor.previousEnd < singleTapThreshold
+					if isDoubleClick {
+						processor.releaseRightKAt = releaseAt
+						processor.releaseLeftMAt = releaseAt
+					} else if isStream {
+						processor.index+=1;
+						if(processor.index % 2 == 0){
+							processor.releaseLeftKAt = releaseAt;
+						} else {
+							processor.releaseRightKAt = releaseAt;
+						}
+						if(processor.index >=2){
+							processor.index = 0;
+						}
+					} else {
+						processor.releaseRightMAt = releaseAt
+					}
 				case "random": // picks a random key
 					processor.index = randomKey(processor);
 					processor.lastKey = processor.index;
