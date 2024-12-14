@@ -4,10 +4,6 @@ var CursorDance = initCursorDance()
 
 func initCursorDance() *cursorDance {
 	return &cursorDance{
-		KeyInType:       "normal",
-		KeyMouse:        "k",
-		KeyRandomRepeat: false,
-		SingleTapKey:    "k1",
 		Movers: []*mover{
 			DefaultsFactory.InitMover(),
 		},
@@ -44,6 +40,15 @@ func initCursorDance() *cursorDance {
 				DefaultsFactory.InitPippi(),
 			},
 		},
+		KeySettings: &keySettings{
+			Type:             "normal",
+			UseMouseInputs:   false,
+			RepeatRandomKeys: false,
+			SingleTapKey:     "k1",
+			TapZXAlt:         false,
+			StartWithK1:      false,
+			PrimaryKey:       "k1",
+		},
 	}
 }
 
@@ -77,10 +82,6 @@ func (d *defaultsFactory) InitSpinner() *spinner {
 }
 
 type cursorDance struct {
-	KeyInType		   string     `label:"Key Input Type" combo:"normal|Default,alt|Alternating,single|Single Tap,tapx|Tap X,tapzx|Tap ZX,random|Random Key,descending|Descending,ascending|Ascending,bounce|Bouncing"`
-	KeyMouse 		   string     `label:"Use key or mouse inputs" combo:"k|Keyboard,m|Mouse" showif:"KeyInType=normal,alt"`
-	SingleTapKey       string      `combo:"k1,k2,m1,m2" showif:"KeyInType=single"`
-	KeyRandomRepeat    bool       `label:"Allow random keys to repeat" showif:"KeyInType=random"`
 	Movers             []*mover   `new:"InitMover"`
 	Spinners           []*spinner `new:"InitSpinner"`
 	ComboTag           bool       `liveedit:"false"`
@@ -88,6 +89,7 @@ type cursorDance struct {
 	DoSpinnersTogether bool       `liveedit:"false"`
 	TAGSliderDance     bool       `label:"TAG slider dance" liveedit:"false"`
 	MoverSettings      *moverSettings
+	KeySettings        *keySettings
 }
 
 type moverSettings struct {
@@ -99,4 +101,14 @@ type moverSettings struct {
 	ExGon      []*exgon    `new:"InitExGon"`
 	Linear     []*linear   `new:"InitLinear"`
 	Pippi      []*pippi    `new:"InitPippi"`
+}
+
+type keySettings struct {
+	Type             string `label:"Key Input Type" combo:"normal|Default,alt|Alternating,single|Single Tap,tapx|Tap X,tapzx|Tap ZX,random|Random Key,descending|Descending,ascending|Ascending,bounce|Bouncing"`
+	UseMouseInputs   bool   `label:"Use mouse inputs" showif:"Type=normal,alt" tooltip:"Use M1 and M2 instead of K1 and K2"`
+	PrimaryKey       string `combo:"k1,k2" showif:"Type=normal,alt" tooltip:"Whether to start tapping with K1 or K2"`
+	SingleTapKey     string `combo:"k1,k2,m1,m2" showif:"Type=single"`
+	RepeatRandomKeys bool   `label:"Allow random keys to repeat" showif:"Type=random"`
+	TapZXAlt         bool   `label:"Use full alt when switching to key inputs" showif:"Type=tapzx"`
+	StartWithK1      bool   `label:"Start with K1" showif:"Type=tapzx" tooltip:"Whether to start tapping with K1 or K2 when hitting streams"`
 }
