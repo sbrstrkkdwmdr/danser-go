@@ -28,8 +28,6 @@ type NaturalInputProcessor struct {
 	index           int
 }
 
-const singleTapThreshold = 140
-
 func NewNaturalInputProcessor(objs []objects.IHitObject, cursor *graphics.Cursor, mover movers.MultiPointMover) *NaturalInputProcessor {
 	processor := new(NaturalInputProcessor)
 	processor.mover = mover
@@ -107,7 +105,7 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 				default:
 				case "normal": // default
 					processor.index += 1
-					shouldBeLeft := processor.index != 1 && startTime-processor.previousEnd < singleTapThreshold
+					shouldBeLeft := processor.index != 1 && startTime-processor.previousEnd < settings.CursorDance.KeySettings.SingleTapThreshold
 					if isDoubleClick {
 						processor.releaseLeftKAt = releaseAt
 						processor.releaseRightKAt = releaseAt
@@ -154,7 +152,7 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 					}
 				case "tapx":
 					processor.index += 1
-					shouldBeLeft := processor.index != 1 && startTime-processor.previousEnd < singleTapThreshold
+					shouldBeLeft := processor.index != 1 && startTime-processor.previousEnd < settings.CursorDance.KeySettings.SingleTapThreshold
 					if isDoubleClick {
 						processor.releaseRightKAt = releaseAt
 						processor.releaseLeftMAt = releaseAt
@@ -166,7 +164,7 @@ func (processor *NaturalInputProcessor) Update(time float64) {
 						processor.index = -1
 					}
 				case "tapzx":
-					isStream := startTime-processor.previousEnd < singleTapThreshold
+					isStream := startTime-processor.previousEnd < settings.CursorDance.KeySettings.SingleTapThreshold
 					if isDoubleClick {
 						processor.releaseRightKAt = releaseAt
 						processor.releaseRightMAt = releaseAt
