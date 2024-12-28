@@ -266,13 +266,8 @@ func processKeys(processor *NaturalInputProcessor, isDoubleClick bool, startTime
 			change = true
 		}
 		if change {
-			processor.switchIndex = 0
-			processor.releaseLeftKAt = -10000000
-			processor.releaseRightKAt = -10000000
-			processor.releaseLeftMAt = -10000000
-			processor.releaseRightMAt = -10000000
-			processor.lastKey = -1
-			processor.index = -1
+			processor.lastKey = 1
+			processor.index = 1
 			processor.keyDirectionUp = true
 			processor.switchIndex = 0
 			processor.switchSettings = randomSettings();
