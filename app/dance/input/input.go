@@ -360,6 +360,9 @@ func randomSettings() *keySettings {
 	}
 	useSettings.PrimaryKey = useKey
 	useSettings.SingleTapKey = useKey
+	if useSettings.UseMouseInputs {
+		useSettings.SingleTapKey = strings.Replace(useSettings.SingleTapKey, "k", "m", -1);
+	}
 	useSettings.RepeatRandomKeys = rand.Float32() < 0.5
 	useSettings.TapZXAlt = rand.Float32() < 0.5
 	useSettings.StartWithK1 = rand.Float32() < 0.5
