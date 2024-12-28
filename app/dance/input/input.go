@@ -237,6 +237,9 @@ func processKeys(processor *NaturalInputProcessor, isDoubleClick bool, startTime
 			processor.index = -1
 		}
 	case "ascending":
+		if processor.index < 0 {
+			processor.index = 4
+		}
 		processor.index -= 1
 		processor = specialKeys(processor, releaseAt, isDoubleClick)
 		if processor.index <= 0 {
@@ -249,6 +252,9 @@ func processKeys(processor *NaturalInputProcessor, isDoubleClick bool, startTime
 				processor.keyDirectionUp = false
 			}
 		} else {
+			if processor.index < 0 {
+				processor.index = 1
+			}
 			processor.index -= 1
 			if processor.index <= 0 {
 				processor.keyDirectionUp = true
