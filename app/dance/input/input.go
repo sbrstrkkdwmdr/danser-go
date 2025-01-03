@@ -353,7 +353,7 @@ func randomSettings() *keySettings {
 	types := []string{"normal", "alt", "single", "tapx", "tapzx", "random", "descending", "ascending", "bounce"}
 	useSettings.Type = types[(rand.Intn(len(types)))]
 	useSettings.UseMouseInputs = rand.Float32() < 0.5
-	useSettings.SingleTapThreshold = (rand.Float64() * (300 - 70)) + 70
+	useSettings.SingleTapThreshold = settings.CursorDance.KeySettings.SingleTapThreshold
 	useKey := "k1"
 	if rand.Float32() < 0.5 {
 		useKey = "k2"

@@ -109,7 +109,7 @@ type moverSettings struct {
 type keySettings struct {
 	Type               string  `label:"Key Input Type" combo:"normal|Default,alt|Alternating,single|Single Tap,tapx|Tap X,tapzx|Tap ZX,random|Random Key,descending|Descending,ascending|Ascending,bounce|Bouncing,switch|Switching"`
 	UseMouseInputs     bool    `label:"Use mouse inputs" showif:"Type=normal,alt" tooltip:"Use M1 and M2 instead of K1 and K2"`
-	SingleTapThreshold float64 `min:"0" max:"300" showif:"Type=normal,tapx,tapzx" tooltip:"Time to wait before single tapping"`
+	SingleTapThreshold float64 `min:"0" max:"300" showif:"Type=normal,tapx,tapzx,switch" tooltip:"Minimum time between hitobjects to single tap"`
 	PrimaryKey         string  `combo:"k1,k2" showif:"Type=normal,alt" tooltip:"Whether to start tapping with K1 or K2"`
 	SingleTapKey       string  `combo:"k1,k2,m1,m2" showif:"Type=single"`
 	RepeatRandomKeys   bool    `label:"Allow random keys to repeat" showif:"Type=random"`
