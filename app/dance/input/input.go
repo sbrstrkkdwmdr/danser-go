@@ -37,6 +37,7 @@ type NaturalInputProcessor struct {
 	releaseRightMAt float64
 	keyDirectionUp  bool
 	mover           movers.MultiPointMover
+	speed          float64
 	lastKey         int
 	index           int
 
@@ -44,11 +45,12 @@ type NaturalInputProcessor struct {
 	switchSettings *keySettings
 }
 
-func NewNaturalInputProcessor(objs []objects.IHitObject, cursor *graphics.Cursor, mover movers.MultiPointMover) *NaturalInputProcessor {
+func NewNaturalInputProcessor(objs []objects.IHitObject, cursor *graphics.Cursor, mover movers.MultiPointMover, speed float64) *NaturalInputProcessor {
 	processor := new(NaturalInputProcessor)
 	processor.mover = mover
 	processor.cursor = cursor
 	processor.queue = make([]objects.IHitObject, len(objs))
+	processor.speed = speed
 	processor.releaseLeftKAt = -10000000
 	processor.releaseRightKAt = -10000000
 	processor.releaseLeftMAt = -10000000
@@ -143,7 +145,7 @@ func processKeys(processor *NaturalInputProcessor, isDoubleClick bool, startTime
 	default:
 	case "normal": // default
 		processor.index += 1
-		shouldBeLeft := processor.index != 1 && startTime-processor.previousEnd < useSettings.SingleTapThreshold
+		shouldBeLeft := processor.index != 1 && startTime-processor.previousEnd < useSettings.SingleTapThreshold*processor.speed
 		if isDoubleClick {
 			processor.releaseLeftKAt = releaseAt
 			processor.releaseRightKAt = releaseAt
@@ -197,7 +199,7 @@ func processKeys(processor *NaturalInputProcessor, isDoubleClick bool, startTime
 		}
 	case "tapx":
 		processor.index += 1
-		shouldBeLeft := processor.index != 1 && startTime-processor.previousEnd < useSettings.SingleTapThreshold
+		shouldBeLeft := processor.index != 1 && startTime-processor.previousEnd < useSettings.SingleTapThreshold*processor.speed
 		if isDoubleClick {
 			processor.releaseRightKAt = releaseAt
 			processor.releaseLeftMAt = releaseAt
@@ -209,7 +211,7 @@ func processKeys(processor *NaturalInputProcessor, isDoubleClick bool, startTime
 			processor.index = -1
 		}
 	case "tapzx":
-		isStream := startTime-processor.previousEnd < useSettings.SingleTapThreshold
+		isStream := startTime-processor.previousEnd < useSettings.SingleTapThreshold*processor.speed
 		if isDoubleClick {
 			processor.releaseRightKAt = releaseAt
 			processor.releaseRightMAt = releaseAt
