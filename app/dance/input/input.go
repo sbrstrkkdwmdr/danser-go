@@ -57,7 +57,7 @@ func NewNaturalInputProcessor(objs []objects.IHitObject, cursor *graphics.Cursor
 	processor.index = -1
 	processor.keyDirectionUp = true
 	processor.switchIndex = 0
-	processor.switchSettings = randomSettings();
+	processor.switchSettings = randomSettings()
 	copy(processor.queue, objs)
 
 	return processor
@@ -172,18 +172,25 @@ func processKeys(processor *NaturalInputProcessor, isDoubleClick bool, startTime
 		switch useSettings.SingleTapKey {
 		case "k1":
 			processor.releaseLeftKAt = releaseAt
-		case "k2":
-			processor.releaseRightKAt = releaseAt
-		case "m1":
-			processor.releaseLeftMAt = releaseAt
-		case "m2":
-			processor.releaseRightMAt = releaseAt
-		}
-		if isDoubleClick {
-			if strings.Contains(useSettings.SingleTapKey, "k") {
+			if isDoubleClick {
 				processor.releaseLeftKAt = releaseAt
 				processor.releaseRightKAt = releaseAt
-			} else {
+			}
+		case "k2":
+			processor.releaseRightKAt = releaseAt
+			if isDoubleClick {
+				processor.releaseLeftKAt = releaseAt
+				processor.releaseRightKAt = releaseAt
+			}
+		case "m1":
+			processor.releaseLeftMAt = releaseAt
+			if isDoubleClick {
+				processor.releaseLeftMAt = releaseAt
+				processor.releaseRightMAt = releaseAt
+			}
+		case "m2":
+			processor.releaseRightMAt = releaseAt
+			if isDoubleClick {
 				processor.releaseLeftMAt = releaseAt
 				processor.releaseRightMAt = releaseAt
 			}
@@ -276,7 +283,7 @@ func processKeys(processor *NaturalInputProcessor, isDoubleClick bool, startTime
 			processor.index = 1
 			processor.keyDirectionUp = true
 			processor.switchIndex = 0
-			processor.switchSettings = randomSettings();
+			processor.switchSettings = randomSettings()
 
 		}
 		processor = processKeys(processor, isDoubleClick, startTime, releaseAt, processor.switchSettings)
@@ -361,12 +368,12 @@ func randomSettings() *keySettings {
 	useSettings.PrimaryKey = useKey
 	useSettings.SingleTapKey = useKey
 	if useSettings.UseMouseInputs {
-		useSettings.SingleTapKey = strings.Replace(useSettings.SingleTapKey, "k", "m", -1);
+		useSettings.SingleTapKey = strings.Replace(useSettings.SingleTapKey, "k", "m", -1)
 	}
 	useSettings.RepeatRandomKeys = rand.Float32() < 0.5
 	useSettings.TapZXAlt = rand.Float32() < 0.5
 	useSettings.StartWithK1 = rand.Float32() < 0.5
 	useSettings.MinSwitchInterval = settings.CursorDance.KeySettings.MinSwitchInterval
 	useSettings.MaxSwitchInterval = settings.CursorDance.KeySettings.MaxSwitchInterval
-	return useSettings;
+	return useSettings
 }
