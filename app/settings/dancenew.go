@@ -40,6 +40,18 @@ func initCursorDance() *cursorDance {
 				DefaultsFactory.InitPippi(),
 			},
 		},
+		KeySettings: &keySettings{
+			Type:             "normal",
+			UseMouseInputs:   false,
+			RepeatRandomKeys: false,
+			SingleTapKey:     "k1",
+			TapZXAlt:         false,
+			StartWithK1:      false,
+			PrimaryKey:       "k1",
+			SingleTapThreshold: 140,
+			MinSwitchInterval: 20,
+			MaxSwitchInterval: 50,
+		},
 	}
 }
 
@@ -80,6 +92,7 @@ type cursorDance struct {
 	DoSpinnersTogether bool       `liveedit:"false"`
 	TAGSliderDance     bool       `label:"TAG slider dance" liveedit:"false"`
 	MoverSettings      *moverSettings
+	KeySettings        *keySettings
 }
 
 type moverSettings struct {
@@ -91,4 +104,17 @@ type moverSettings struct {
 	ExGon      []*exgon    `new:"InitExGon"`
 	Linear     []*linear   `new:"InitLinear"`
 	Pippi      []*pippi    `new:"InitPippi"`
+}
+
+type keySettings struct {
+	Type               string  `label:"Key Input Type" combo:"normal|Default,alt|Alternating,single|Single Tap,tapx|Tap X,tapzx|Tap ZX,random|Random Key,descending|Descending,ascending|Ascending,bounce|Bouncing,switch|Switching"`
+	UseMouseInputs     bool    `label:"Use mouse inputs" showif:"Type=normal,alt" tooltip:"Use M1 and M2 instead of K1 and K2"`
+	SingleTapThreshold float64 `min:"0" max:"300" showif:"Type=normal,tapx,tapzx,switch" tooltip:"Minimum time between hitobjects to single tap"`
+	PrimaryKey         string  `combo:"k1,k2" showif:"Type=normal,alt" tooltip:"Whether to start tapping with K1 or K2"`
+	SingleTapKey       string  `combo:"k1,k2,m1,m2" showif:"Type=single"`
+	RepeatRandomKeys   bool    `label:"Allow random keys to repeat" showif:"Type=random"`
+	TapZXAlt           bool    `label:"Use full alt when switching to key inputs" showif:"Type=tapzx"`
+	StartWithK1        bool    `label:"Start with K1" showif:"Type=tapzx" tooltip:"Whether to start tapping with K1 or K2 when hitting streams"`
+	MinSwitchInterval  int     `tooltip:"How many hits before danser can switch to another input type" showif:"Type=switch"`
+	MaxSwitchInterval  int     `tooltip:"How many hits before danser has to switch to another input type" showif:"Type=switch"`
 }
