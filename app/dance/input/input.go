@@ -145,7 +145,7 @@ func processKeys(processor *NaturalInputProcessor, isDoubleClick bool, startTime
 	default:
 	case "normal": // default
 		processor.index += 1
-		shouldBeLeft := processor.index != 1 && startTime-processor.previousEnd < useSettings.SingleTapThreshold*processor.speed
+		shouldBeLeft := processor.index != 1 && isStream(startTime, processor.previousEnd, useSettings.SingleTapThreshold)//*processor.speed
 		if isDoubleClick {
 			processor.releaseLeftKAt = releaseAt
 			processor.releaseRightKAt = releaseAt
@@ -199,7 +199,7 @@ func processKeys(processor *NaturalInputProcessor, isDoubleClick bool, startTime
 		}
 	case "tapx":
 		processor.index += 1
-		shouldBeLeft := processor.index != 1 && startTime-processor.previousEnd < useSettings.SingleTapThreshold*processor.speed
+		shouldBeLeft := processor.index != 1 && isStream(startTime, processor.previousEnd, useSettings.SingleTapThreshold)//*processor.speed
 		if isDoubleClick {
 			processor.releaseRightKAt = releaseAt
 			processor.releaseLeftMAt = releaseAt
@@ -211,7 +211,7 @@ func processKeys(processor *NaturalInputProcessor, isDoubleClick bool, startTime
 			processor.index = -1
 		}
 	case "tapzx":
-		isStream := startTime-processor.previousEnd < useSettings.SingleTapThreshold*processor.speed
+		isStream := isStream(startTime, processor.previousEnd, useSettings.SingleTapThreshold)//*processor.speed
 		if isDoubleClick {
 			processor.releaseRightKAt = releaseAt
 			processor.releaseRightMAt = releaseAt
@@ -378,4 +378,9 @@ func randomSettings() *keySettings {
 	useSettings.MinSwitchInterval = settings.CursorDance.KeySettings.MinSwitchInterval
 	useSettings.MaxSwitchInterval = settings.CursorDance.KeySettings.MaxSwitchInterval
 	return useSettings
+}
+
+
+func isStream(startTime float64, previousEnd float64, threshold float64) bool {
+	return previousEnd - startTime < threshold;
 }
