@@ -415,7 +415,12 @@ func (editor *settingsEditor) buildMainSection(jsonPath, sPath, name string, u r
 	imgui.PopFont()
 	imgui.Separator()
 
+	cPad := imgui.CurrentStyle().CellPadding()
+	imgui.PushStyleVarVec2(imgui.StyleVarCellPadding, vec2(cPad.X, 0))
+
 	editor.traverseChildren(jsonPath, sPath, u, reflect.StructField{})
+
+	imgui.PopStyleVar()
 
 	if jsonPath == "##Credentials" {
 		centerTable("authbutton", -1, func() {
@@ -468,7 +473,7 @@ func (editor *settingsEditor) buildMainSection(jsonPath, sPath, name string, u r
 	}
 }
 
-func (editor *settingsEditor) subSectionTempl(name string, afterTitle, content func()) {
+func (editor *settingsEditor) subSectionTempl(name string, jsonPath string, d reflect.StructField, afterTitle, content func()) {
 	pos := imgui.CursorScreenPos()
 
 	imgui.Dummy(vec2(3, 0))
@@ -479,7 +484,38 @@ func (editor *settingsEditor) subSectionTempl(name string, afterTitle, content f
 	imgui.PushFont(Font24)
 	imgui.TextUnformatted(strings.ToUpper(name))
 
-	afterTitle()
+	if tVal, ok := d.Tag.Lookup("wiki"); ok {
+		spl := strings.Split(tVal, "|")
+
+		imgui.SameLine()
+
+		contentAvail := imgui.ContentRegionAvail().X - 1
+		if imgui.BeginTableV("subSecButtons"+jsonPath, 2, imgui.TableFlagsSizingStretchProp|imgui.TableFlagsNoPadInnerX|imgui.TableFlagsNoPadOuterX|imgui.TableFlagsNoClip, vec2(contentAvail, 0), contentAvail) {
+			imgui.TableSetupColumnV("subSecButtons1"+jsonPath, imgui.TableColumnFlagsWidthStretch, 0, imgui.ID(0))
+			imgui.TableSetupColumnV("subSecButtons2"+jsonPath, imgui.TableColumnFlagsWidthFixed, 0, imgui.ID(1))
+
+			imgui.TableNextColumn()
+
+			if afterTitle != nil {
+				afterTitle()
+			}
+
+			imgui.TableNextColumn()
+
+			imgui.PushFont(Font20)
+
+			if imgui.Button(spl[0] + "##wikiBtn" + jsonPath) {
+				platform.OpenURL(spl[1])
+			}
+
+			imgui.PopFont()
+
+			imgui.EndTable()
+		}
+	} else if afterTitle != nil {
+		imgui.SameLine()
+		afterTitle()
+	}
 
 	imgui.PopFont()
 
@@ -501,7 +537,7 @@ func (editor *settingsEditor) subSectionTempl(name string, afterTitle, content f
 func (editor *settingsEditor) buildSubSection(jsonPath, sPath, name string, u reflect.Value, d reflect.StructField) {
 	dRunLock := editor.tryLockLive(d)
 
-	editor.subSectionTempl(name, func() {}, func() {
+	editor.subSectionTempl(name, jsonPath, d, nil, func() {
 		editor.traverseChildren(jsonPath, sPath, u, d)
 	})
 
@@ -516,11 +552,7 @@ func (editor *settingsEditor) buildArray(jsonPath, sPath, name string, u reflect
 		minSize, _ = strconv.Atoi(lVal)
 	}
 
-	editor.subSectionTempl(name, func() {
-		imgui.SameLine()
-		imgui.Dummy(vec2(2, 0))
-		imgui.SameLine()
-
+	editor.subSectionTempl(name, jsonPath, d, func() {
 		ImIO.SetFontGlobalScale(20.0 / 32)
 		imgui.PushFont(FontAw)
 
@@ -659,8 +691,6 @@ func (editor *settingsEditor) traverseChildren(jsonPath, lPath string, u reflect
 
 		if wasRendered {
 			notFirst = true
-
-			imgui.Dummy(vec2(0, 2))
 		}
 
 		wasRendered = true
@@ -830,6 +860,9 @@ func (editor *settingsEditor) buildVector(jsonPath1, jsonPath2 string, d reflect
 	drawBox := func() {
 		contentAvail := imgui.ContentRegionAvail().X
 
+		cPad := imgui.CurrentStyle().CellPadding()
+		imgui.PushStyleVarVec2(imgui.StyleVarCellPadding, vec2(cPad.X, 0))
+
 		if imgui.BeginTableV("tv"+jsonPath1, 3, imgui.TableFlagsSizingStretchProp, vec2(contentAvail, 0), contentAvail) {
 			imgui.TableSetupColumnV("tv1"+jsonPath1, imgui.TableColumnFlagsWidthStretch, 0, imgui.ID(0))
 			imgui.TableSetupColumnV("tv2"+jsonPath1, imgui.TableColumnFlagsWidthFixed, 0, imgui.ID(1))
@@ -861,6 +894,8 @@ func (editor *settingsEditor) buildVector(jsonPath1, jsonPath2 string, d reflect
 
 			imgui.EndTable()
 		}
+
+		imgui.PopStyleVar()
 	}
 
 	cSpec, okC := d.Tag.Lookup("combo")
@@ -943,8 +978,8 @@ func (editor *settingsEditor) buildVector(jsonPath1, jsonPath2 string, d reflect
 }
 
 func (editor *settingsEditor) buildFloatBox(jsonPath string, f reflect.Value, d reflect.StructField) {
-	min := float64(parseFloatOr(d.Tag.Get("min"), 0))
-	max := float64(parseFloatOr(d.Tag.Get("max"), 1))
+	minV := float64(parseFloatOr(d.Tag.Get("min"), 0))
+	maxV := float64(parseFloatOr(d.Tag.Get("max"), 1))
 	scale := float64(parseFloatOr(d.Tag.Get("scale"), 1))
 
 	base := f.Float()
@@ -959,20 +994,20 @@ func (editor *settingsEditor) buildFloatBox(jsonPath string, f reflect.Value, d 
 		if err != nil {
 			valText = prevText
 		} else {
-			parsed = mutils.Clamp(parsed/scale, min, max)
+			parsed = mutils.Clamp(parsed/scale, minV, maxV)
 			f.SetFloat(parsed)
 		}
 	}
 }
 
 func (editor *settingsEditor) buildIntBox(jsonPath string, f reflect.Value, d reflect.StructField) {
-	min := parseIntOr(d.Tag.Get("min"), 0)
-	max := parseIntOr(d.Tag.Get("max"), 100)
+	minV := parseIntOr(d.Tag.Get("min"), 0)
+	maxV := parseIntOr(d.Tag.Get("max"), 100)
 
 	base := int32(f.Int())
 
 	if imgui.InputIntV(jsonPath, &base, 1, 1, 0) {
-		base = mutils.Clamp(base, int32(min), int32(max))
+		base = mutils.Clamp(base, int32(minV), int32(maxV))
 		f.SetInt(int64(base))
 	}
 }
@@ -1285,10 +1320,10 @@ func (editor *settingsEditor) buildInt(jsonPath string, f reflect.Value, d refle
 				}
 
 				if hasCustom {
-					min := parseIntOr(d.Tag.Get("min"), 0)
-					max := parseIntOr(d.Tag.Get("max"), 100)
+					minV := parseIntOr(d.Tag.Get("min"), 0)
+					maxV := parseIntOr(d.Tag.Get("max"), 100)
 
-					if base >= int32(min) {
+					if base >= int32(minV) {
 						pad := vec2(imgui.CurrentStyle().FramePadding().X, imgui.CurrentStyle().ItemSpacing().Y*0.5)
 						scPos := imgui.CursorScreenPos().Sub(pad)
 
@@ -1305,7 +1340,7 @@ func (editor *settingsEditor) buildInt(jsonPath string, f reflect.Value, d refle
 					imgui.SetNextItemWidth(imgui.ContentRegionAvail().X)
 
 					if imgui.InputIntV(jsonPath, &base, 1, 1, 0) {
-						base = mutils.Clamp(base, int32(min), int32(max))
+						base = mutils.Clamp(base, int32(minV), int32(maxV))
 						f.SetInt(int64(base))
 					}
 				}
@@ -1315,12 +1350,12 @@ func (editor *settingsEditor) buildInt(jsonPath string, f reflect.Value, d refle
 		} else if okS {
 			editor.buildIntBox(jsonPath, f, d)
 		} else {
-			min := parseIntOr(d.Tag.Get("min"), 0)
-			max := parseIntOr(d.Tag.Get("max"), 100)
+			minV := parseIntOr(d.Tag.Get("min"), 0)
+			maxV := parseIntOr(d.Tag.Get("max"), 100)
 
 			imgui.PushStyleVarVec2(imgui.StyleVarFramePadding, vec2(0, -3))
 
-			if sliderIntSlide(jsonPath, &base, int32(min), int32(max), "##"+format, imgui.SliderFlagsNoInput) {
+			if sliderIntSlide(jsonPath, &base, int32(minV), int32(maxV), "##"+format, imgui.SliderFlagsNoInput) {
 				f.SetInt(int64(base))
 			}
 
@@ -1422,6 +1457,8 @@ func (editor *settingsEditor) drawComponent(jsonPath, label string, long, checkb
 
 	contentAvail := imgui.ContentRegionAvail().X
 
+	dummyExactY(2)
+
 	if imgui.BeginTableV("lbl"+jsonPath, int32(cCount), imgui.TableFlagsSizingStretchProp|imgui.TableFlagsNoPadInnerX|imgui.TableFlagsNoPadOuterX|imgui.TableFlagsNoClip, vec2(contentAvail, 0), contentAvail) {
 		if !long {
 			imgui.TableSetupColumnV("lbl1"+jsonPath, imgui.TableColumnFlagsWidthFixed, contentAvail-width, imgui.ID(0))
@@ -1479,6 +1516,8 @@ func (editor *settingsEditor) drawComponent(jsonPath, label string, long, checkb
 
 		imgui.EndTable()
 	}
+
+	dummyExactY(2)
 
 	if dRunLock {
 		editor.unlockLive(false)

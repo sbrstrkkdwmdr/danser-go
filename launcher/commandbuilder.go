@@ -24,12 +24,10 @@ type knockoutReplay struct {
 	path         string
 	parsedReplay *rplpa.Replay
 	included     bool
+	mods         difficulty.Modifier
 }
 
 type builder struct {
-	currentMode  Mode
-	currentPMode PMode
-
 	outputName string
 	ssTime     float32
 
@@ -60,8 +58,6 @@ type builder struct {
 
 func newBuilder() *builder {
 	return &builder{
-		currentMode:  CursorDance,
-		currentPMode: Watch,
 		speed: floatParam{
 			ogValue: 1,
 			value:   1,
@@ -162,13 +158,16 @@ func (b *builder) numKnockoutReplays() (ret int) {
 }
 
 func (b *builder) getArguments() (args []string) {
+	currentMode := launcherConfig.CurrentMode
+	currentPMode := launcherConfig.CurrentPMode
+
 	args = append(args, "-nodbcheck", "-noupdatecheck")
 
 	if b.config != "default" {
 		args = append(args, "-settings", b.config)
 	}
 
-	if b.currentMode == Replay {
+	if currentMode == Replay {
 		args = append(args, "-replay", b.replayPath)
 
 		if !b.sourceDiff.Equals(b.diff) {
@@ -181,9 +180,9 @@ func (b *builder) getArguments() (args []string) {
 
 		diffClone := b.diff.Clone()
 
-		if b.currentMode == Play {
+		if currentMode == Play {
 			args = append(args, "-play")
-		} else if b.currentMode == Knockout {
+		} else if currentMode == Knockout {
 			var list []string
 
 			for _, r := range b.knockoutReplays {
@@ -194,7 +193,7 @@ func (b *builder) getArguments() (args []string) {
 
 			data, _ := json.Marshal(list)
 			args = append(args, "-knockout2", string(data))
-		} else if b.currentMode == DanserReplay {
+		} else if currentMode == DanserReplay {
 			diffClone.AddMod(difficulty.Autoplay)
 		}
 
@@ -205,7 +204,7 @@ func (b *builder) getArguments() (args []string) {
 		}
 	}
 
-	if b.currentMode != Play && b.currentPMode != Watch {
+	if currentMode != Play && currentPMode != Watch {
 		oEmpty := true
 
 		if tr := strings.TrimSpace(b.outputName); tr != "" {
@@ -213,18 +212,18 @@ func (b *builder) getArguments() (args []string) {
 			args = append(args, "-out", tr)
 		}
 
-		if b.currentPMode == Record {
+		if currentPMode == Record {
 			args = append(args, "-preciseprogress")
 		}
 
-		if b.currentPMode == Screenshot {
+		if currentPMode == Screenshot {
 			args = append(args, "-ss", strconv.FormatFloat(float64(b.ssTime), 'f', 3, 32))
 		} else if oEmpty {
 			args = append(args, "-record")
 		}
 	}
 
-	if b.currentMode == CursorDance {
+	if currentMode == CursorDance {
 		if b.mirrors > 1 {
 			args = append(args, "-cursors", strconv.Itoa(int(b.mirrors)))
 		}
@@ -254,7 +253,7 @@ func (b *builder) getArguments() (args []string) {
 		args = append(args, "-skip")
 	}
 
-	if b.offset.changed && b.currentPMode != Screenshot {
+	if b.offset.changed && currentPMode != Screenshot {
 		args = append(args, "-offset", strconv.Itoa(int(b.offset.value)))
 	}
 
