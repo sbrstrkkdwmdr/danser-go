@@ -41,6 +41,8 @@ func (h *StatHolder) SetMapStats(bMap *beatmap.BeatMap, pDiff *difficulty.Diffic
 	h.stats["title"] = bMap.Name
 	h.stats["creator"] = bMap.Creator
 	h.stats["version"] = bMap.Difficulty
+	h.stats["bid"] = bMap.ID
+	h.stats["sid"] = bMap.SetID
 
 	h.stats["baseAR"] = pDiff.GetBaseAR()
 	h.stats["realAR"] = pDiff.ARReal
