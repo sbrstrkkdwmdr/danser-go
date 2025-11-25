@@ -111,6 +111,7 @@ const (
 	Rename ConfigMode = iota
 	Clone
 	New
+	Select
 )
 
 type launcher struct {
@@ -1439,6 +1440,10 @@ func (l *launcher) drawConfigPanel() {
 								l.configManiMode = Clone
 							}
 
+							if imgui.SelectableBool("Select") {
+								l.setConfig(s)
+							}
+
 							if s != "default" {
 								if imgui.SelectableBool("Remove") {
 									if showMessage(mQuestion, "Are you sure you want to remove \"%s\" profile?", s) {
@@ -1530,10 +1535,13 @@ func (l *launcher) drawConfigPanel() {
 						log.Println("ok")
 						switch l.configManiMode {
 						case Rename:
+							fmt.Println("Rename...")
 							l.renameConfig(l.configPrevName, l.newCloneName)
 						case Clone:
+							fmt.Println("Clone...")
 							l.cloneConfig(l.configPrevName, l.newCloneName)
 						case New:
+							fmt.Println("New...")
 							l.createConfig(l.newCloneName)
 						}
 
