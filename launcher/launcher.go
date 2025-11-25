@@ -1535,13 +1535,10 @@ func (l *launcher) drawConfigPanel() {
 						log.Println("ok")
 						switch l.configManiMode {
 						case Rename:
-							fmt.Println("Rename...")
 							l.renameConfig(l.configPrevName, l.newCloneName)
 						case Clone:
-							fmt.Println("Clone...")
 							l.cloneConfig(l.configPrevName, l.newCloneName)
 						case New:
-							fmt.Println("New...")
 							l.createConfig(l.newCloneName)
 						}
 
